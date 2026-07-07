@@ -1,0 +1,26 @@
+<article
+  id="job-{{ job.job_id }}"
+  class="card job-card"
+  {% if job.status not in terminal_statuses %}
+    hx-get="/jobs/{{ job.job_id }}"
+    hx-trigger="every 2s"
+    hx-swap="outerHTML"
+  {% endif %}
+>
+  <div class="card-content">
+    <span class="card-title truncate">{{ job.original_filename }}</span>
+    {% if job.status.value == "DOCUMENT_PROCESSING_JOB_SUCCEEDED" %}
+      <span class="chip green lighten-4 green-text text-darken-4">{{ job.status.value }}</span>
+    {% elif job.status.value == "DOCUMENT_PROCESSING_JOB_FAILED" %}
+      <span class="chip red lighten-4 red-text text-darken-4">{{ job.status.value }}</span>
+    {% elif job.status.value == "DOCUMENT_PROCESSING_JOB_STARTED" %}
+      <span class="chip amber lighten-4 amber-text text-darken-4">{{ job.status.value }}</span>
+    {% else %}
+      <span class="chip blue lighten-4 blue-text text-darken-4">{{ job.status.value }}</span>
+    {% endif %}
+    <p class="grey-text text-darken-2">Job ID: {{ job.job_id }}</p>
+    {% if job.error_message %}
+      <p class="red-text text-darken-4">Error: {{ job.error_message }}</p>
+    {% endif %}
+  </div>
+</article>

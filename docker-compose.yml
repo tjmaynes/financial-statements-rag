@@ -1,0 +1,36 @@
+services:
+  financial-statements-rag-web:
+    build: .
+    depends_on:
+      - financial-statements-rag-redis
+    environment:
+      FSR_REDIS_URL: redis://financial-statements-rag-redis:6379/0
+      FSR_SQLITE_DATABASE_PATH: /app/data/financial_statements_rag.sqlite3
+      FSR_UPLOAD_DIR: /app/data/uploads
+      FSR_MAX_UPLOAD_COUNT: "10"
+      FSR_LOG_LEVEL: INFO
+    ports:
+      - "8000:8000"
+    volumes:
+      - financial-statements-rag-data:/app/data
+
+  financial-statements-rag-worker:
+    build: .
+    command: python -m arq financial_statements_rag.worker.WorkerSettings
+    depends_on:
+      - financial-statements-rag-redis
+    environment:
+      FSR_REDIS_URL: redis://financial-statements-rag-redis:6379/0
+      FSR_SQLITE_DATABASE_PATH: /app/data/financial_statements_rag.sqlite3
+      FSR_UPLOAD_DIR: /app/data/uploads
+      FSR_MAX_UPLOAD_COUNT: "10"
+      FSR_LOG_LEVEL: INFO
+      FSR_WORKER_CONCURRENCY: "3"
+    volumes:
+      - financial-statements-rag-data:/app/data
+
+  financial-statements-rag-redis:
+    image: redis:8.8.0
+
+volumes:
+  financial-statements-rag-data:
