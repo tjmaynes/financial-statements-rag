@@ -6,7 +6,7 @@
 
 | Area | Details |
 |------|---------|
-| Project | FastAPI backend for uploading financial statement PDFs, indexing them for retrieval, and tracking document processing jobs. |
+| Project | FastAPI backend for uploading SEC filing PDFs, indexing them for retrieval, and tracking document processing jobs. |
 | Language | Python 3.14.6 |
 | Package/build | `pyproject.toml` with Hatchling |
 | Web stack | FastAPI, Jinja2, HTMX, Materialize CSS |
@@ -20,13 +20,13 @@ Trimmed project map:
 
 ```text
 .
-├── financial_statements_rag/
+├── sec_filings_rag/
 │   ├── errors.py            # Safe terminal and retryable processing error types
 │   ├── ingestion/           # PDF extraction, indexing, and LangGraph ingestion workflow
 │   ├── jobs/                # Job models, job service, SQLite event log, and ARQ dispatch
 │   ├── logging.py           # Package logging configuration
 │   ├── main.py              # ASGI app and CLI entrypoint
-│   ├── settings.py          # FSR_* environment settings
+│   ├── settings.py          # SFR_* environment settings
 │   ├── storage.py           # Upload validation and local PDF storage
 │   ├── workers/             # ARQ worker modules and job handlers
 │   └── web/
@@ -45,31 +45,31 @@ Trimmed project map:
 
 ## Architecture
 
-- Uploads enter through `POST /upload`, are validated and saved by `financial_statements_rag.storage.DocumentUploadService`, then create one document job per accepted PDF.
+- Uploads enter through `POST /upload`, are validated and saved by `sec_filings_rag.storage.DocumentUploadService`, then create one document job per accepted PDF.
 - Invalid PDFs are rendered as per-file upload errors while valid PDFs in the same request still enqueue.
 - The FastAPI app creates a `DocumentJobRecord`, appends every lifecycle change to SQLite through `SQLiteDocumentJobEventLog`, and uses SQLite history for latest-state reads.
-- `RedisDocumentJobDispatcher` enqueues `process_document_job` onto ARQ. `financial_statements_rag.workers.process_document` loads the same `Settings`, configures logging, and updates job state as a LangGraph workflow runs.
+- `RedisDocumentJobDispatcher` enqueues `process_document_job` onto ARQ. `sec_filings_rag.workers.process_document` loads the same `Settings`, configures logging, and updates job state as a LangGraph workflow runs.
 - SQLite is append-only history. Every job creation/status transition inserts a new `processing_jobs` row.
 - Status display reads the latest job state from SQLite history. The index page renders recent jobs newest first. The frontend polls `GET /jobs/{job_id}` every 2 seconds while a job is non-terminal and stops polling after success or failure.
 - `process_document_job` calls `build_document_ingestion_workflow(...).ainvoke(...)` directly with `job_id` and `document_path`.
 - The LangGraph workflow loads PDF pages, infers report metadata, detects statement sections, extracts line-item candidates, builds chunks, creates embeddings, and persists indexed rows into Postgres plus `pgvector`.
-- Safe error contracts live in `financial_statements_rag/errors.py`. `RetryableProcessingError` triggers ARQ retry behavior before final failure is recorded.
-- FastAPI app construction is centralized in `financial_statements_rag/web/app.py`; route handlers should stay thin and delegate to services.
+- Safe error contracts live in `sec_filings_rag/errors.py`. `RetryableProcessingError` triggers ARQ retry behavior before final failure is recorded.
+- FastAPI app construction is centralized in `sec_filings_rag/web/app.py`; route handlers should stay thin and delegate to services.
 
 ### Network Diagram
 
 ```mermaid
 flowchart LR
     Browser["Browser / HTMX UI"]
-    WebApp["FastAPI app\nfinancial_statements_rag.web.app"]
+    WebApp["FastAPI app\nsec_filings_rag.web.app"]
     StorageModule["storage.py\nupload validation and storage"]
     JobsModule["jobs/*\njob service, dispatcher,\nand event log"]
     Dispatcher["RedisDocumentJobDispatcher"]
     Redis["Redis / ARQ broker"]
-    Worker["ARQ worker\nfinancial_statements_rag.workers.process_document"]
-    Workflow["LangGraph workflow\nfinancial_statements_rag.ingestion.workflow"]
+    Worker["ARQ worker\nsec_filings_rag.workers.process_document"]
+    Workflow["LangGraph workflow\nsec_filings_rag.ingestion.workflow"]
     EventLog["SQLiteDocumentJobEventLog"]
-    UploadDir["Upload dir\nFSR_UPLOAD_DIR"]
+    UploadDir["Upload dir\nSFR_UPLOAD_DIR"]
     SQLite[(SQLite\nprocessing_jobs)]
     Postgres[(Postgres\npgvector)]
 
@@ -94,19 +94,19 @@ flowchart LR
 - Install dependencies with `make install`.
 - Start the local Compose stack with `make start`.
 - `make start` runs `docker compose up --build` for the web app, worker, Redis, and Postgres plus `pgvector`.
-- Runtime settings use the `FSR_*` prefix:
-  - `FSR_REDIS_URL`
-  - `FSR_POSTGRES_URL`
-  - `FSR_OPENAI_API_KEY`
-  - `FSR_SQLITE_DATABASE_PATH`
-  - `FSR_UPLOAD_DIR`
-  - `FSR_MAX_UPLOAD_COUNT`
-  - `FSR_LOG_LEVEL`
-  - `FSR_WORKER_CONCURRENCY`
-  - `FSR_EMBEDDING_MODEL`
-  - `FSR_CHUNK_SIZE`
-  - `FSR_CHUNK_OVERLAP`
-  - `FSR_INDEX_REMAINING_TEXT`
+- Runtime settings use the `SFR_*` prefix:
+  - `SFR_REDIS_URL`
+  - `SFR_POSTGRES_URL`
+  - `SFR_OPENAI_API_KEY`
+  - `SFR_SQLITE_DATABASE_PATH`
+  - `SFR_UPLOAD_DIR`
+  - `SFR_MAX_UPLOAD_COUNT`
+  - `SFR_LOG_LEVEL`
+  - `SFR_WORKER_CONCURRENCY`
+  - `SFR_EMBEDDING_MODEL`
+  - `SFR_CHUNK_SIZE`
+  - `SFR_CHUNK_OVERLAP`
+  - `SFR_INDEX_REMAINING_TEXT`
 - Do not commit runtime data under `data/`, build outputs, caches, or virtual environments.
 
 ## Common Tasks
@@ -137,11 +137,11 @@ flowchart LR
 - Use explicit protocols for swappable boundaries such as queues, processors, and event logs.
 - Keep SQLite `processing_jobs` append-only. Add reads, not update/delete behavior, unless the data model is intentionally redesigned.
 - Keep ARQ dispatch details centralized in `RedisDocumentJobDispatcher`.
-- Keep LangGraph workflow orchestration centralized in `financial_statements_rag/ingestion/workflow.py`.
-- Keep upload validation and local PDF storage in `financial_statements_rag/storage.py`.
-- Keep job event log, dispatcher, and document job service behavior in `financial_statements_rag/jobs/`.
+- Keep LangGraph workflow orchestration centralized in `sec_filings_rag/ingestion/workflow.py`.
+- Keep upload validation and local PDF storage in `sec_filings_rag/storage.py`.
+- Keep job event log, dispatcher, and document job service behavior in `sec_filings_rag/jobs/`.
 - Preserve `job_id` in job lifecycle logs and rendered status updates.
-- Use `FSR_*` for new runtime environment variables.
+- Use `SFR_*` for new runtime environment variables.
 - Update `README.md` when setup, commands, runtime behavior, or user-facing workflows change.
 
 ## Don'ts
@@ -150,7 +150,7 @@ flowchart LR
 - Do not log PDF contents.
 - Do not store uploads using user-provided filenames as paths.
 - Do not mutate SQLite history rows in place.
-- Do not add new global settings with non-`FSR_*` prefixes.
+- Do not add new global settings with non-`SFR_*` prefixes.
 - Do not log PDF contents, chunk text, embeddings, OpenAI keys, or Postgres credentials.
 - Do not run destructive git commands such as `git reset --hard` or `git checkout --` unless explicitly requested.
 

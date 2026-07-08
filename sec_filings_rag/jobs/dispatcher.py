@@ -5,8 +5,8 @@ from typing import Protocol
 
 from arq.connections import ArqRedis, RedisSettings, create_pool
 
-from financial_statements_rag.jobs.models import JobMetadata
-from financial_statements_rag.logging import get_logger
+from sec_filings_rag.jobs.models import JobMetadata
+from sec_filings_rag.logging import get_logger
 
 logger = get_logger("jobs.dispatcher")
 

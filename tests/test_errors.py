@@ -1,4 +1,4 @@
-from financial_statements_rag.errors import (
+from sec_filings_rag.errors import (
     DocumentProcessingError,
     RetryableProcessingError,
 )

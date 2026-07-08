@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import logging
 
-from financial_statements_rag.settings import Settings
+from sec_filings_rag.settings import Settings
 
-BASE_LOGGER_NAME = "financial_statements_rag"
+BASE_LOGGER_NAME = "sec_filings_rag"
 
 
 class JobIdFilter(logging.Filter):

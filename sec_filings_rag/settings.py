@@ -14,7 +14,7 @@ class Settings:
     upload_dir: Path = Path("data/uploads")
     max_upload_count: int = 10
     redis_url: str = "redis://localhost:6379/0"
-    sqlite_database_path: Path = Path("data/financial_statements_rag.sqlite3")
+    sqlite_database_path: Path = Path("data/sec_filings_rag.sqlite3")
     log_level: str = "INFO"
     worker_concurrency: int = 3
     postgres_url: str = ""
@@ -48,27 +48,27 @@ def _embedding_dimension(model: str) -> int:
 
 
 def load_settings_from_env() -> Settings:
-    redis_url = environ.get("FSR_REDIS_URL", "redis://localhost:6379/0")
+    redis_url = environ.get("SFR_REDIS_URL", "redis://localhost:6379/0")
     sqlite_database_path = Path(
         environ.get(
-            "FSR_SQLITE_DATABASE_PATH",
-            "data/financial_statements_rag.sqlite3",
+            "SFR_SQLITE_DATABASE_PATH",
+            "data/sec_filings_rag.sqlite3",
         ),
     )
-    embedding_model = environ.get("FSR_EMBEDDING_MODEL", "text-embedding-3-small")
+    embedding_model = environ.get("SFR_EMBEDDING_MODEL", "text-embedding-3-small")
 
     return Settings(
-        upload_dir=Path(environ.get("FSR_UPLOAD_DIR", "data/uploads")),
-        max_upload_count=int(environ.get("FSR_MAX_UPLOAD_COUNT", "10")),
+        upload_dir=Path(environ.get("SFR_UPLOAD_DIR", "data/uploads")),
+        max_upload_count=int(environ.get("SFR_MAX_UPLOAD_COUNT", "10")),
         redis_url=redis_url,
         sqlite_database_path=sqlite_database_path,
-        log_level=environ.get("FSR_LOG_LEVEL", "INFO"),
-        worker_concurrency=int(environ.get("FSR_WORKER_CONCURRENCY", "3")),
-        postgres_url=_required_env("FSR_POSTGRES_URL"),
-        openai_api_key=_required_env("FSR_OPENAI_API_KEY"),
+        log_level=environ.get("SFR_LOG_LEVEL", "INFO"),
+        worker_concurrency=int(environ.get("SFR_WORKER_CONCURRENCY", "3")),
+        postgres_url=_required_env("SFR_POSTGRES_URL"),
+        openai_api_key=_required_env("SFR_OPENAI_API_KEY"),
         embedding_model=embedding_model,
         embedding_dimension=_embedding_dimension(embedding_model),
-        chunk_size=int(environ.get("FSR_CHUNK_SIZE", "1000")),
-        chunk_overlap=int(environ.get("FSR_CHUNK_OVERLAP", "150")),
-        index_remaining_text=_bool_env("FSR_INDEX_REMAINING_TEXT", True),
+        chunk_size=int(environ.get("SFR_CHUNK_SIZE", "1000")),
+        chunk_overlap=int(environ.get("SFR_CHUNK_OVERLAP", "150")),
+        index_remaining_text=_bool_env("SFR_INDEX_REMAINING_TEXT", True),
     )

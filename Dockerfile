@@ -7,11 +7,11 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
 COPY pyproject.toml README.md ./
-COPY financial_statements_rag ./financial_statements_rag
+COPY sec_filings_rag ./sec_filings_rag
 
 RUN python -m pip install --upgrade pip \
     && python -m pip install .
 
 EXPOSE 8000
 
-CMD ["uvicorn", "financial_statements_rag.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "sec_filings_rag.main:app", "--host", "0.0.0.0", "--port", "8000"]

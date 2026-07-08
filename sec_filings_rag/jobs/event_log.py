@@ -5,12 +5,12 @@ from pathlib import Path
 import sqlite3
 from typing import Protocol, cast
 
-from financial_statements_rag.jobs.models import (
+from sec_filings_rag.jobs.models import (
     DocumentJobRecord,
     DocumentJobStatus,
     JobMetadata,
 )
-from financial_statements_rag.logging import get_logger
+from sec_filings_rag.logging import get_logger
 
 logger = get_logger("jobs.event_log")
 

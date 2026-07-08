@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 import re
 
-from financial_statements_rag.ingestion.extraction.metadata import ReportMetadata
-from financial_statements_rag.ingestion.extraction.pdf import ExtractedPage
+from sec_filings_rag.ingestion.extraction.metadata import ReportMetadata
+from sec_filings_rag.ingestion.extraction.pdf import ExtractedPage
 
 
 class StatementType(StrEnum):

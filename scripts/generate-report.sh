@@ -69,8 +69,8 @@ main() {
 
   mkdir -p "$report_dir"
 
-  docker compose exec -T financial-statements-rag-postgres \
-    psql -U financial_statements_rag -d financial_statements_rag -c \
+  docker compose exec -T sec-filings-rag-postgres \
+    psql -U sec_filings_rag -d sec_filings_rag -c \
     "select * from indexed_documents order by created_at desc;" \
     > "$output_path"
 

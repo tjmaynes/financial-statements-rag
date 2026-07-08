@@ -5,13 +5,13 @@ import os
 
 import pytest
 
-from financial_statements_rag.errors import RetryableProcessingError
-from financial_statements_rag.ingestion.indexing.embeddings import (
+from sec_filings_rag.errors import RetryableProcessingError
+from sec_filings_rag.ingestion.indexing.embeddings import (
     DeterministicEmbeddingProvider,
     EmbeddingClient,
     OpenAIEmbeddingProvider,
 )
-from financial_statements_rag.settings import Settings
+from sec_filings_rag.settings import Settings
 
 
 class RecordingEmbeddingClient:

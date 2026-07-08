@@ -6,7 +6,7 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
     <script src="https://unpkg.com/htmx.org@2.0.7"></script>
-    <title>Financial Statements RAG</title>
+    <title>SEC Filings RAG</title>
     <style>
       body {
         background: #f5f7fa;
@@ -28,13 +28,13 @@
   <body>
     <nav class="blue-grey darken-3">
       <div class="nav-wrapper container">
-        <span class="brand-logo">Financial Statements RAG</span>
+        <span class="brand-logo">SEC Filings RAG</span>
       </div>
     </nav>
     <main class="container">
       <div class="page-title">
-        <h4>Upload Financial Statements</h4>
-        <p class="grey-text text-darken-2">Submit up to 10 PDFs and track processing status.</p>
+        <h4>Upload SEC Filing PDFs</h4>
+        <p class="grey-text text-darken-2">Submit up to 10 PDFs and track educational ingestion runs.</p>
       </div>
 
       <div class="card">
@@ -54,7 +54,7 @@
                 <input type="file" name="files" accept="application/pdf,.pdf" multiple>
               </div>
               <div class="file-path-wrapper">
-                <input class="file-path validate" type="text" placeholder="Select one or more PDF statements">
+                <input class="file-path validate" type="text" placeholder="Select one or more SEC filing PDFs">
               </div>
             </div>
             <button class="btn waves-effect waves-light blue-grey darken-3" type="submit">

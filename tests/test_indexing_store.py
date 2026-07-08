@@ -4,14 +4,14 @@ from datetime import date
 
 import pytest
 
-from financial_statements_rag.errors import RetryableProcessingError
-from financial_statements_rag.ingestion.indexing.models import (
+from sec_filings_rag.errors import RetryableProcessingError
+from sec_filings_rag.ingestion.indexing.models import (
     DocumentChunk,
     IndexedDocument,
     StatementLineItem,
     StatementSection,
 )
-from financial_statements_rag.ingestion.indexing.store import (
+from sec_filings_rag.ingestion.indexing.store import (
     PostgresIndexStore,
     schema_sql,
 )

@@ -1,7 +1,7 @@
 """Worker modules."""
 
-from financial_statements_rag.settings import load_settings_from_env
-from financial_statements_rag.workers.process_document import (
+from sec_filings_rag.settings import load_settings_from_env
+from sec_filings_rag.workers.process_document import (
     DEFAULT_MAX_TRIES,
     process_document_job,
     shutdown,

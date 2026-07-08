@@ -1,52 +1,52 @@
 services:
-  financial-statements-rag-web:
+  sec-filings-rag-web:
     build: .
     depends_on:
-      - financial-statements-rag-redis
-      - financial-statements-rag-postgres
+      - sec-filings-rag-redis
+      - sec-filings-rag-postgres
     environment:
-      FSR_REDIS_URL: redis://financial-statements-rag-redis:6379/0
-      FSR_POSTGRES_URL: "postgresql://financial_statements_rag:financial_statements_rag@financial-statements-rag-postgres:5432/financial_statements_rag"
-      FSR_OPENAI_API_KEY: "${FSR_OPENAI_API_KEY:?Required environment variable missing: FSR_OPENAI_API_KEY}"
-      FSR_SQLITE_DATABASE_PATH: /app/data/financial_statements_rag.sqlite3
-      FSR_UPLOAD_DIR: /app/data/uploads
-      FSR_MAX_UPLOAD_COUNT: "10"
-      FSR_LOG_LEVEL: INFO
+      SFR_REDIS_URL: redis://sec-filings-rag-redis:6379/0
+      SFR_POSTGRES_URL: "postgresql://sec_filings_rag:sec_filings_rag@sec-filings-rag-postgres:5432/sec_filings_rag"
+      SFR_OPENAI_API_KEY: "${SFR_OPENAI_API_KEY:?Required environment variable missing: SFR_OPENAI_API_KEY}"
+      SFR_SQLITE_DATABASE_PATH: /app/data/sec_filings_rag.sqlite3
+      SFR_UPLOAD_DIR: /app/data/uploads
+      SFR_MAX_UPLOAD_COUNT: "10"
+      SFR_LOG_LEVEL: INFO
     ports:
       - "8000:8000"
     volumes:
-      - financial-statements-rag-data:/app/data
+      - sec-filings-rag-data:/app/data
 
-  financial-statements-rag-worker:
+  sec-filings-rag-worker:
     build: .
-    command: python -m arq financial_statements_rag.workers.WorkerSettings
+    command: python -m arq sec_filings_rag.workers.WorkerSettings
     depends_on:
-      - financial-statements-rag-redis
-      - financial-statements-rag-postgres
+      - sec-filings-rag-redis
+      - sec-filings-rag-postgres
     environment:
-      FSR_REDIS_URL: redis://financial-statements-rag-redis:6379/0
-      FSR_POSTGRES_URL: "postgresql://financial_statements_rag:financial_statements_rag@financial-statements-rag-postgres:5432/financial_statements_rag"
-      FSR_OPENAI_API_KEY: "${FSR_OPENAI_API_KEY:?Required environment variable missing: FSR_OPENAI_API_KEY}"
-      FSR_SQLITE_DATABASE_PATH: /app/data/financial_statements_rag.sqlite3
-      FSR_UPLOAD_DIR: /app/data/uploads
-      FSR_MAX_UPLOAD_COUNT: "10"
-      FSR_LOG_LEVEL: INFO
-      FSR_WORKER_CONCURRENCY: "3"
+      SFR_REDIS_URL: redis://sec-filings-rag-redis:6379/0
+      SFR_POSTGRES_URL: "postgresql://sec_filings_rag:sec_filings_rag@sec-filings-rag-postgres:5432/sec_filings_rag"
+      SFR_OPENAI_API_KEY: "${SFR_OPENAI_API_KEY:?Required environment variable missing: SFR_OPENAI_API_KEY}"
+      SFR_SQLITE_DATABASE_PATH: /app/data/sec_filings_rag.sqlite3
+      SFR_UPLOAD_DIR: /app/data/uploads
+      SFR_MAX_UPLOAD_COUNT: "10"
+      SFR_LOG_LEVEL: INFO
+      SFR_WORKER_CONCURRENCY: "3"
     volumes:
-      - financial-statements-rag-data:/app/data
+      - sec-filings-rag-data:/app/data
 
-  financial-statements-rag-redis:
+  sec-filings-rag-redis:
     image: redis:8.8.0
 
-  financial-statements-rag-postgres:
+  sec-filings-rag-postgres:
     image: pgvector/pgvector:pg16
     environment:
-      POSTGRES_DB: financial_statements_rag
-      POSTGRES_USER: financial_statements_rag
-      POSTGRES_PASSWORD: financial_statements_rag
+      POSTGRES_DB: sec_filings_rag
+      POSTGRES_USER: sec_filings_rag
+      POSTGRES_PASSWORD: sec_filings_rag
     volumes:
-      - financial-statements-rag-postgres-data:/var/lib/postgresql/data
+      - sec-filings-rag-postgres-data:/var/lib/postgresql/data
 
 volumes:
-  financial-statements-rag-data:
-  financial-statements-rag-postgres-data:
+  sec-filings-rag-data:
+  sec-filings-rag-postgres-data:

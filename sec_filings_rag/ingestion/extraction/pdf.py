@@ -6,7 +6,7 @@ import importlib
 from pathlib import Path
 from typing import cast
 
-from financial_statements_rag.ingestion.extraction._errors import (
+from sec_filings_rag.ingestion.extraction._errors import (
     DocumentProcessingError,
 )
 

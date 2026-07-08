@@ -5,7 +5,7 @@ from hashlib import sha256
 from pathlib import Path
 import re
 
-from financial_statements_rag.ingestion.indexing.models import (
+from sec_filings_rag.ingestion.indexing.models import (
     DocumentChunk,
     IndexedDocument,
     StatementSection,

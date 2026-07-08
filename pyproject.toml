@@ -3,11 +3,11 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "financial-statements-rag"
+name = "sec-filings-rag"
 authors = [
   { name = "TJ Maynes", email = "tj@tjmaynes.com" },
 ]
-description = "RAG pipeline for analyzing financial statements"
+description = "Educational RAG pipeline for experimenting with SEC filing ingestion"
 readme = "README.md"
 requires-python = ">=3.14"
 dynamic = ["version"]
@@ -43,13 +43,13 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["financial_statements_rag"]
+packages = ["sec_filings_rag"]
 
 [tool.hatch.version]
-path = "financial_statements_rag/version.py"
+path = "sec_filings_rag/version.py"
 
 [project.scripts]
-financial-statements-rag = "financial_statements_rag.main:main"
+sec-filings-rag = "sec_filings_rag.main:main"
 
 [tool.pytest.ini_options]
 pythonpath = "."

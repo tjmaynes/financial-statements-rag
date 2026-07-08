@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 import re
 
-from financial_statements_rag.ingestion.extraction.pdf import ExtractedPage
+from sec_filings_rag.ingestion.extraction.pdf import ExtractedPage
 
 
 @dataclass(frozen=True)

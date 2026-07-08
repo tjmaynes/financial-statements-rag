@@ -1,12 +1,12 @@
 from datetime import date
 from pathlib import Path
 
-from financial_statements_rag.ingestion.extraction.metadata import (
+from sec_filings_rag.ingestion.extraction.metadata import (
     ReportMetadata,
     ReportMetadataInferer,
 )
-from financial_statements_rag.ingestion.extraction.pdf import PdfPageExtractor
-from financial_statements_rag.ingestion.extraction.pdf import ExtractedPage
+from sec_filings_rag.ingestion.extraction.pdf import PdfPageExtractor
+from sec_filings_rag.ingestion.extraction.pdf import ExtractedPage
 
 
 def test_infers_quarterly_report_metadata() -> None:

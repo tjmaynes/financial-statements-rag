@@ -8,16 +8,16 @@ from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.templating import Jinja2Templates
 from starlette.responses import Response
 
-from financial_statements_rag.jobs import (
+from sec_filings_rag.jobs import (
     DocumentJobRecord,
     DocumentJobService,
     DocumentJobStatus,
     DocumentJobUnavailableError,
     build_upload_job_metadata,
 )
-from financial_statements_rag.logging import get_logger
-from financial_statements_rag.settings import Settings
-from financial_statements_rag.storage import DocumentUploadService
+from sec_filings_rag.logging import get_logger
+from sec_filings_rag.settings import Settings
+from sec_filings_rag.storage import DocumentUploadService
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
 templates = Jinja2Templates(directory=TEMPLATE_DIR)

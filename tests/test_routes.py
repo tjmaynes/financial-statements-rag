@@ -5,18 +5,18 @@ import re
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from financial_statements_rag.jobs import (
+from sec_filings_rag.jobs import (
     DocumentJobDispatcher,
     DocumentJobService,
     DocumentJobStatus,
     SQLiteDocumentJobEventLog,
 )
-from financial_statements_rag.settings import Settings
-from financial_statements_rag.web.app import create_app
+from sec_filings_rag.settings import Settings
+from sec_filings_rag.web.app import create_app
 
 JOB_STATUS_TEMPLATE = (
     Path(__file__).resolve().parent.parent
-    / "financial_statements_rag/web/templates/partials/job_status.html"
+    / "sec_filings_rag/web/templates/partials/job_status.html"
 )
 
 

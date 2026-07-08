@@ -4,26 +4,26 @@ import asyncio
 from collections.abc import Sequence
 from pathlib import Path
 
-from financial_statements_rag.ingestion.extraction.metadata import ReportMetadata
-from financial_statements_rag.ingestion.extraction.pdf import ExtractedPage
-from financial_statements_rag.ingestion.extraction.statements import (
+from sec_filings_rag.ingestion.extraction.metadata import ReportMetadata
+from sec_filings_rag.ingestion.extraction.pdf import ExtractedPage
+from sec_filings_rag.ingestion.extraction.statements import (
     StatementDetectionResult,
     StatementLineItem,
     StatementSection,
     StatementType,
 )
-from financial_statements_rag.ingestion.indexing.models import (
+from sec_filings_rag.ingestion.indexing.models import (
     DocumentChunk,
     IndexedDocument,
     StatementLineItem as IndexedStatementLineItem,
     StatementSection as IndexedStatementSection,
 )
-from financial_statements_rag.ingestion.indexing.chunking import create_document_chunks
-from financial_statements_rag.settings import Settings
+from sec_filings_rag.ingestion.indexing.chunking import create_document_chunks
+from sec_filings_rag.settings import Settings
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from financial_statements_rag.ingestion.workflow import ChunkBuilder
+    from sec_filings_rag.ingestion.workflow import ChunkBuilder
 
 
 class RecordingPdfPageExtractor:
@@ -188,7 +188,7 @@ def recording_chunk_builder(
 
 
 def test_workflow_executes_nodes_in_order() -> None:
-    from financial_statements_rag.ingestion.workflow import (
+    from sec_filings_rag.ingestion.workflow import (
         build_document_ingestion_workflow,
     )
 
@@ -249,7 +249,7 @@ class WarningOnlyStatementExtractor:
 
 
 def test_warning_path_still_persists_chunks() -> None:
-    from financial_statements_rag.ingestion.workflow import (
+    from sec_filings_rag.ingestion.workflow import (
         build_document_ingestion_workflow,
     )
 

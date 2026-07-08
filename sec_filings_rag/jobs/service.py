@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-from financial_statements_rag.jobs.dispatcher import (
+from sec_filings_rag.jobs.dispatcher import (
     DocumentJobDispatcher,
     DocumentJobUnavailableError,
 )
-from financial_statements_rag.jobs.event_log import DocumentJobEventLog
-from financial_statements_rag.jobs.models import (
+from sec_filings_rag.jobs.event_log import DocumentJobEventLog
+from sec_filings_rag.jobs.models import (
     DocumentJobRecord,
     DocumentJobStatus,
     JobMetadata,
     new_job_id,
 )
-from financial_statements_rag.logging import get_logger
+from sec_filings_rag.logging import get_logger
 
 logger = get_logger("jobs.service")
 

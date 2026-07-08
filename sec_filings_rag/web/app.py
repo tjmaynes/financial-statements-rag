@@ -2,16 +2,16 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 
-from financial_statements_rag.jobs import (
+from sec_filings_rag.jobs import (
     DocumentJobDispatcher,
     DocumentJobService,
     RedisDocumentJobDispatcher,
     SQLiteDocumentJobEventLog,
 )
-from financial_statements_rag.logging import configure_logging, get_logger
-from financial_statements_rag.settings import Settings, load_settings_from_env
-from financial_statements_rag.storage import DocumentUploadService
-from financial_statements_rag.web.routes import create_router
+from sec_filings_rag.logging import configure_logging, get_logger
+from sec_filings_rag.settings import Settings, load_settings_from_env
+from sec_filings_rag.storage import DocumentUploadService
+from sec_filings_rag.web.routes import create_router
 
 logger = get_logger("web.app")
 
@@ -25,7 +25,7 @@ def create_app(
     resolved_settings = settings or load_settings_from_env()
     configure_logging(resolved_settings)
 
-    app = FastAPI(title="Financial Statements RAG")
+    app = FastAPI(title="SEC Filings RAG")
     app.state.settings = resolved_settings
     app.state.document_job_service = document_job_service or DocumentJobService(
         SQLiteDocumentJobEventLog(resolved_settings.sqlite_database_path),

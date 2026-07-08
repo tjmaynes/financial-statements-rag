@@ -5,13 +5,13 @@ import importlib
 import json
 from typing import Protocol, cast
 
-from financial_statements_rag.ingestion.indexing.models import (
+from sec_filings_rag.ingestion.indexing.models import (
     DocumentChunk,
     IndexedDocument,
     StatementLineItem,
     StatementSection,
 )
-from financial_statements_rag.errors import RetryableProcessingError
+from sec_filings_rag.errors import RetryableProcessingError
 
 VECTOR_STORE_UNAVAILABLE_CODE = "VECTOR_STORE_UNAVAILABLE"
 VECTOR_STORE_UNAVAILABLE_MESSAGE = "Index store is temporarily unavailable"

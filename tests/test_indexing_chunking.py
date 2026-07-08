@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from financial_statements_rag.ingestion.indexing.chunking import (
+from sec_filings_rag.ingestion.indexing.chunking import (
     IndexedDocument,
     StatementSection,
     build_document_id,
@@ -77,7 +77,7 @@ def test_statement_chunks_are_created_before_remaining_text() -> None:
         f"{balance_sheet.raw_text} "
         "Management discussion and analysis continues here. "
         f"{cash_flow.raw_text} "
-        "Notes to unaudited condensed consolidated financial statements."
+        "Notes to unaudited condensed consolidated SEC filings."
     )
 
     chunks = create_document_chunks(

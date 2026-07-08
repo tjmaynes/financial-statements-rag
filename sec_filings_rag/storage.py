@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from starlette.datastructures import UploadFile
 
-from financial_statements_rag.logging import get_logger
+from sec_filings_rag.logging import get_logger
 
 logger = get_logger("storage")
 

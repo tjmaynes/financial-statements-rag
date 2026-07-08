@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from starlette.datastructures import Headers, UploadFile
 
-from financial_statements_rag.jobs import (
+from sec_filings_rag.jobs import (
     DocumentJobRecord,
     DocumentJobService,
     DocumentJobStatus,
@@ -14,7 +14,7 @@ from financial_statements_rag.jobs import (
     SQLiteDocumentJobEventLog,
     build_upload_job_metadata,
 )
-from financial_statements_rag.storage import DocumentUploadService, UploadedDocument
+from sec_filings_rag.storage import DocumentUploadService, UploadedDocument
 
 
 class RecordingDocumentProcessorDispatcher:

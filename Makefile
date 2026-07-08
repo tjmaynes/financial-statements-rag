@@ -3,14 +3,14 @@ install:
 	./scripts/install.sh
 
 lint:
-	. .venv/bin/activate; python -m mypy --strict financial_statements_rag/ tests/
-	. .venv/bin/activate; python -m ruff check financial_statements_rag/ tests/
+	. .venv/bin/activate; python -m mypy --strict sec_filings_rag/ tests/
+	. .venv/bin/activate; python -m ruff check sec_filings_rag/ tests/
 
 format:
-	. .venv/bin/activate; python -m ruff format financial_statements_rag/ tests/
+	. .venv/bin/activate; python -m ruff format sec_filings_rag/ tests/
 
 test:
-	. .venv/bin/activate; python -m pytest financial_statements_rag tests \
+	. .venv/bin/activate; python -m pytest sec_filings_rag tests \
 		--doctest-modules \
 		--junitxml=test-results-$(shell cat .python-version).xml
 

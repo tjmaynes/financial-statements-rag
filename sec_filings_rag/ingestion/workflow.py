@@ -7,38 +7,38 @@ from typing import Any, Protocol, TypedDict, cast
 
 from langgraph.graph import END, START, StateGraph
 
-from financial_statements_rag.ingestion.extraction.metadata import (
+from sec_filings_rag.ingestion.extraction.metadata import (
     ReportMetadata,
     ReportMetadataInferer,
 )
-from financial_statements_rag.ingestion.extraction.pdf import (
+from sec_filings_rag.ingestion.extraction.pdf import (
     ExtractedPage,
     PdfPageExtractor,
 )
-from financial_statements_rag.ingestion.extraction.statements import (
+from sec_filings_rag.ingestion.extraction.statements import (
     StatementDetectionResult,
     StatementExtractor,
     StatementLineItem as ExtractedStatementLineItem,
     StatementSection as ExtractedStatementSection,
 )
-from financial_statements_rag.ingestion.indexing.chunking import (
+from sec_filings_rag.ingestion.indexing.chunking import (
     build_document_id,
     build_line_item_id,
     build_section_id,
     create_document_chunks,
 )
-from financial_statements_rag.ingestion.indexing.embeddings import (
+from sec_filings_rag.ingestion.indexing.embeddings import (
     EmbeddingProvider,
     OpenAIEmbeddingProvider,
 )
-from financial_statements_rag.ingestion.indexing.models import (
+from sec_filings_rag.ingestion.indexing.models import (
     DocumentChunk,
     IndexedDocument,
     StatementLineItem,
     StatementSection,
 )
-from financial_statements_rag.ingestion.indexing.store import PostgresIndexStore
-from financial_statements_rag.settings import Settings
+from sec_filings_rag.ingestion.indexing.store import PostgresIndexStore
+from sec_filings_rag.settings import Settings
 
 
 class PdfPageExtractionService(Protocol):

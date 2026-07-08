@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from financial_statements_rag.ingestion.extraction import DocumentProcessingError
-from financial_statements_rag.ingestion.extraction.pdf import (
+from sec_filings_rag.ingestion.extraction import DocumentProcessingError
+from sec_filings_rag.ingestion.extraction.pdf import (
     EncryptedPdfError,
     ExtractedPage,
     PdfPageExtractor,

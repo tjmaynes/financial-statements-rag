@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from financial_statements_rag.ingestion.extraction.metadata import ReportMetadata
-from financial_statements_rag.ingestion.extraction.pdf import ExtractedPage
-from financial_statements_rag.ingestion.extraction.statements import (
+from sec_filings_rag.ingestion.extraction.metadata import ReportMetadata
+from sec_filings_rag.ingestion.extraction.pdf import ExtractedPage
+from sec_filings_rag.ingestion.extraction.statements import (
     StatementExtractor,
     StatementType,
 )

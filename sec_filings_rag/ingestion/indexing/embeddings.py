@@ -5,8 +5,8 @@ from hashlib import sha256
 import importlib
 from typing import Protocol, cast
 
-from financial_statements_rag.errors import RetryableProcessingError
-from financial_statements_rag.settings import Settings
+from sec_filings_rag.errors import RetryableProcessingError
+from sec_filings_rag.settings import Settings
 
 EMBEDDING_SERVICE_UNAVAILABLE_CODE = "EMBEDDING_SERVICE_UNAVAILABLE"
 EMBEDDING_SERVICE_UNAVAILABLE_MESSAGE = "Embedding service is temporarily unavailable"

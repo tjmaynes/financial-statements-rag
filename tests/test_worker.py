@@ -3,18 +3,18 @@ from pathlib import Path
 
 from arq import Retry
 
-from financial_statements_rag.errors import (
+from sec_filings_rag.errors import (
     DocumentProcessingError,
     RetryableProcessingError,
 )
-from financial_statements_rag.jobs import (
+from sec_filings_rag.jobs import (
     DocumentJobService,
     DocumentJobStatus,
     SQLiteDocumentJobEventLog,
     build_upload_job_metadata,
 )
-from financial_statements_rag.workers import WorkerSettings
-from financial_statements_rag.workers.process_document import (
+from sec_filings_rag.workers import WorkerSettings
+from sec_filings_rag.workers.process_document import (
     process_document_job,
 )
 

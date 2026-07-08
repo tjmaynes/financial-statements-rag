@@ -5,32 +5,32 @@ from typing import Any, cast
 
 from arq import Retry
 
-from financial_statements_rag.errors import (
+from sec_filings_rag.errors import (
     DocumentProcessingError,
     RetryableProcessingError,
 )
-from financial_statements_rag.ingestion.extraction.metadata import (
+from sec_filings_rag.ingestion.extraction.metadata import (
     ReportMetadataInferer,
 )
-from financial_statements_rag.ingestion.extraction.pdf import PdfPageExtractor
-from financial_statements_rag.ingestion.extraction.statements import StatementExtractor
-from financial_statements_rag.ingestion.indexing.embeddings import (
+from sec_filings_rag.ingestion.extraction.pdf import PdfPageExtractor
+from sec_filings_rag.ingestion.extraction.statements import StatementExtractor
+from sec_filings_rag.ingestion.indexing.embeddings import (
     OpenAIEmbeddingProvider,
 )
-from financial_statements_rag.ingestion.indexing.store import PostgresIndexStore
-from financial_statements_rag.ingestion.workflow import (
+from sec_filings_rag.ingestion.indexing.store import PostgresIndexStore
+from sec_filings_rag.ingestion.workflow import (
     DocumentIngestionWorkflow,
     build_document_ingestion_workflow,
 )
-from financial_statements_rag.jobs import (
+from sec_filings_rag.jobs import (
     DocumentJobService,
     DocumentJobStatus,
     JobMetadata,
     RedisDocumentJobDispatcher,
     SQLiteDocumentJobEventLog,
 )
-from financial_statements_rag.logging import configure_logging, get_logger
-from financial_statements_rag.settings import load_settings_from_env
+from sec_filings_rag.logging import configure_logging, get_logger
+from sec_filings_rag.settings import load_settings_from_env
 
 logger = get_logger("worker")
 DEFAULT_MAX_TRIES = 3
