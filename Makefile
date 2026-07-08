@@ -28,3 +28,7 @@ start:
 
 clean:
 	rm -rf dist/ build/ reports/ *.egg-info/ *cache
+
+generate_report:
+	chmod +x ./scripts/generate-report.sh
+	./scripts/generate-report.sh
