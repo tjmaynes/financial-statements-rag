@@ -23,6 +23,8 @@ def test_settings_loads_redis_and_sqlite_urls_without_backend_selector(
 ) -> None:
     monkeypatch.setenv("FSR_REDIS_URL", "redis://example.test:6379/0")
     monkeypatch.setenv("FSR_SQLITE_DATABASE_PATH", "data/events.sqlite3")
+    monkeypatch.setenv("FSR_POSTGRES_URL", "postgresql://localhost/fsr")
+    monkeypatch.setenv("FSR_OPENAI_API_KEY", "sk-test")
 
     settings = load_settings_from_env()
 

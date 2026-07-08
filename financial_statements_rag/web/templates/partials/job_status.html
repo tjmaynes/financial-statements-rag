@@ -14,7 +14,7 @@
     {% elif job.status.value == "DOCUMENT_PROCESSING_JOB_FAILED" %}
       <span class="chip red lighten-4 red-text text-darken-4">{{ job.status.value }}</span>
     {% elif job.status.value == "DOCUMENT_PROCESSING_JOB_STARTED" %}
-      <span class="chip amber lighten-4 amber-text text-darken-4">{{ job.status.value }}</span>
+      <span class="chip blue lighten-4 blue-text text-darken-4">{{ job.status.value }}</span>
     {% else %}
       <span class="chip blue lighten-4 blue-text text-darken-4">{{ job.status.value }}</span>
     {% endif %}

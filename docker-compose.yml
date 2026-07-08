@@ -3,8 +3,11 @@ services:
     build: .
     depends_on:
       - financial-statements-rag-redis
+      - financial-statements-rag-postgres
     environment:
       FSR_REDIS_URL: redis://financial-statements-rag-redis:6379/0
+      FSR_POSTGRES_URL: "postgresql://financial_statements_rag:financial_statements_rag@financial-statements-rag-postgres:5432/financial_statements_rag"
+      FSR_OPENAI_API_KEY: "${FSR_OPENAI_API_KEY:?Required environment variable missing: FSR_OPENAI_API_KEY}"
       FSR_SQLITE_DATABASE_PATH: /app/data/financial_statements_rag.sqlite3
       FSR_UPLOAD_DIR: /app/data/uploads
       FSR_MAX_UPLOAD_COUNT: "10"
@@ -16,11 +19,14 @@ services:
 
   financial-statements-rag-worker:
     build: .
-    command: python -m arq financial_statements_rag.worker.WorkerSettings
+    command: python -m arq financial_statements_rag.workers.process_document.WorkerSettings
     depends_on:
       - financial-statements-rag-redis
+      - financial-statements-rag-postgres
     environment:
       FSR_REDIS_URL: redis://financial-statements-rag-redis:6379/0
+      FSR_POSTGRES_URL: "postgresql://financial_statements_rag:financial_statements_rag@financial-statements-rag-postgres:5432/financial_statements_rag"
+      FSR_OPENAI_API_KEY: "${FSR_OPENAI_API_KEY:?Required environment variable missing: FSR_OPENAI_API_KEY}"
       FSR_SQLITE_DATABASE_PATH: /app/data/financial_statements_rag.sqlite3
       FSR_UPLOAD_DIR: /app/data/uploads
       FSR_MAX_UPLOAD_COUNT: "10"
@@ -32,5 +38,15 @@ services:
   financial-statements-rag-redis:
     image: redis:8.8.0
 
+  financial-statements-rag-postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: financial_statements_rag
+      POSTGRES_USER: financial_statements_rag
+      POSTGRES_PASSWORD: financial_statements_rag
+    volumes:
+      - financial-statements-rag-postgres-data:/var/lib/postgresql/data
+
 volumes:
   financial-statements-rag-data:
+  financial-statements-rag-postgres-data:

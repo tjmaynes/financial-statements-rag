@@ -6,15 +6,14 @@ from pathlib import Path
 import pytest
 from starlette.datastructures import Headers, UploadFile
 
-from financial_statements_rag.processing import (
-    DocumentProcessingService,
-    DocumentProcessorUnavailableError,
-    DocumentProcessingJobRecord,
-    DocumentProcessingJobStatus,
-    DocumentUploadService,
-    SQLiteDocumentProcessorEventLog,
-    UploadedDocument,
+from financial_statements_rag.jobs import (
+    DocumentJobRecord,
+    DocumentJobService,
+    DocumentJobStatus,
+    DocumentJobUnavailableError,
+    SQLiteDocumentJobEventLog,
 )
+from financial_statements_rag.storage import DocumentUploadService, UploadedDocument
 
 
 class RecordingDocumentProcessorDispatcher:
@@ -27,36 +26,36 @@ class RecordingDocumentProcessorDispatcher:
 
 class FailingDocumentProcessorDispatcher:
     async def enqueue(self, job_id: str, document_path: Path) -> None:
-        raise DocumentProcessorUnavailableError(
+        raise DocumentJobUnavailableError(
             "Document processing is temporarily unavailable",
         )
 
 
 def test_job_status_exposes_only_canonical_document_processor_names() -> None:
     with pytest.raises(KeyError):
-        DocumentProcessingJobStatus["PROCESSING_SUCCEEDED"]
+        DocumentJobStatus["PROCESSING_SUCCEEDED"]
 
     with pytest.raises(KeyError):
-        DocumentProcessingJobStatus["UPLOADED"]
+        DocumentJobStatus["UPLOADED"]
 
 
 def test_sqlite_event_log_appends_status_history(tmp_path: Path) -> None:
     async def run_test() -> None:
         database_path = tmp_path / "events.sqlite3"
-        event_log = SQLiteDocumentProcessorEventLog(database_path)
-        job = DocumentProcessingJobRecord(
+        event_log = SQLiteDocumentJobEventLog(database_path)
+        job = DocumentJobRecord(
             job_id="job-123",
             original_filename="statement.pdf",
             stored_path=Path("data/uploads/abc.pdf"),
-            status=DocumentProcessingJobStatus.CREATED,
+            status=DocumentJobStatus.CREATED,
         )
 
         await event_log.append(job)
         await event_log.append(
-            job.with_status(DocumentProcessingJobStatus.STARTED),
+            job.with_status(DocumentJobStatus.STARTED),
         )
         await event_log.append(
-            job.with_status(DocumentProcessingJobStatus.SUCCEEDED),
+            job.with_status(DocumentJobStatus.SUCCEEDED),
         )
 
         with sqlite3.connect(database_path) as connection:
@@ -76,20 +75,20 @@ def test_sqlite_event_log_appends_status_history(tmp_path: Path) -> None:
 
 def test_sqlite_event_log_reads_get_job(tmp_path: Path) -> None:
     async def run_test() -> None:
-        event_log = SQLiteDocumentProcessorEventLog(tmp_path / "events.sqlite3")
-        job = DocumentProcessingJobRecord(
+        event_log = SQLiteDocumentJobEventLog(tmp_path / "events.sqlite3")
+        job = DocumentJobRecord(
             job_id="job-123",
             original_filename="statement.pdf",
             stored_path=Path("data/uploads/abc.pdf"),
-            status=DocumentProcessingJobStatus.CREATED,
+            status=DocumentJobStatus.CREATED,
         )
 
         await event_log.append(job)
-        await event_log.append(job.with_status(DocumentProcessingJobStatus.STARTED))
+        await event_log.append(job.with_status(DocumentJobStatus.STARTED))
 
         latest = await event_log.latest(job.job_id)
 
-        assert latest == job.with_status(DocumentProcessingJobStatus.STARTED)
+        assert latest == job.with_status(DocumentJobStatus.STARTED)
 
     asyncio.run(run_test())
 
@@ -98,43 +97,43 @@ def test_sqlite_event_log_history_returns_latest_state_per_job(
     tmp_path: Path,
 ) -> None:
     async def run_test() -> None:
-        event_log = SQLiteDocumentProcessorEventLog(tmp_path / "events.sqlite3")
-        first = DocumentProcessingJobRecord(
+        event_log = SQLiteDocumentJobEventLog(tmp_path / "events.sqlite3")
+        first = DocumentJobRecord(
             job_id="job-1",
             original_filename="first.pdf",
             stored_path=Path("data/uploads/first.pdf"),
-            status=DocumentProcessingJobStatus.CREATED,
+            status=DocumentJobStatus.CREATED,
         )
-        second = DocumentProcessingJobRecord(
+        second = DocumentJobRecord(
             job_id="job-2",
             original_filename="second.pdf",
             stored_path=Path("data/uploads/second.pdf"),
-            status=DocumentProcessingJobStatus.CREATED,
+            status=DocumentJobStatus.CREATED,
         )
 
         await event_log.append(first)
         await event_log.append(second)
         await event_log.append(
-            first.with_status(DocumentProcessingJobStatus.SUCCEEDED),
+            first.with_status(DocumentJobStatus.SUCCEEDED),
         )
 
         history = await event_log.history()
 
         assert history == [
-            first.with_status(DocumentProcessingJobStatus.SUCCEEDED),
+            first.with_status(DocumentJobStatus.SUCCEEDED),
             second,
         ]
 
     asyncio.run(run_test())
 
 
-def test_document_processing_service_updates_job_state_in_event_log(
+def test_document_job_service_updates_job_state_in_event_log(
     tmp_path: Path,
 ) -> None:
     async def run_test() -> None:
-        event_log = SQLiteDocumentProcessorEventLog(tmp_path / "events.sqlite3")
+        event_log = SQLiteDocumentJobEventLog(tmp_path / "events.sqlite3")
         dispatcher = RecordingDocumentProcessorDispatcher()
-        service = DocumentProcessingService(event_log, dispatcher)
+        service = DocumentJobService(event_log, dispatcher)
 
         job = await service.create_job(
             "statement.pdf",
@@ -142,7 +141,7 @@ def test_document_processing_service_updates_job_state_in_event_log(
         )
         updated = await service.update_job_status(
             job.job_id,
-            DocumentProcessingJobStatus.STARTED,
+            DocumentJobStatus.STARTED,
         )
 
         assert await service.get_job(job.job_id) == updated
@@ -160,13 +159,13 @@ def test_document_processing_service_updates_job_state_in_event_log(
     asyncio.run(run_test())
 
 
-def test_document_processing_service_process_enqueues_document_processing(
+def test_document_job_service_process_enqueues_document_processing(
     tmp_path: Path,
 ) -> None:
     async def run_test() -> None:
-        event_log = SQLiteDocumentProcessorEventLog(tmp_path / "events.sqlite3")
+        event_log = SQLiteDocumentJobEventLog(tmp_path / "events.sqlite3")
         dispatcher = RecordingDocumentProcessorDispatcher()
-        service = DocumentProcessingService(event_log, dispatcher)
+        service = DocumentJobService(event_log, dispatcher)
 
         job = await service.create_job(
             "statement.pdf",
@@ -178,17 +177,17 @@ def test_document_processing_service_process_enqueues_document_processing(
     asyncio.run(run_test())
 
 
-def test_document_processing_service_process_raises_when_enqueueing_fails(
+def test_document_job_service_process_raises_when_enqueueing_fails(
     tmp_path: Path,
 ) -> None:
     async def run_test() -> None:
-        event_log = SQLiteDocumentProcessorEventLog(tmp_path / "events.sqlite3")
-        service = DocumentProcessingService(
+        event_log = SQLiteDocumentJobEventLog(tmp_path / "events.sqlite3")
+        service = DocumentJobService(
             event_log,
             FailingDocumentProcessorDispatcher(),
         )
 
-        with pytest.raises(DocumentProcessorUnavailableError):
+        with pytest.raises(DocumentJobUnavailableError):
             await service.create_job(
                 "statement.pdf",
                 Path("data/uploads/abc.pdf"),

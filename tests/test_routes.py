@@ -5,11 +5,11 @@ import re
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from financial_statements_rag.processing import (
-    DocumentProcessingService,
-    DocumentProcessingJobStatus,
-    SQLiteDocumentProcessorEventLog,
-    DocumentProcessingDispatcher,
+from financial_statements_rag.jobs import (
+    DocumentJobDispatcher,
+    DocumentJobService,
+    DocumentJobStatus,
+    SQLiteDocumentJobEventLog,
 )
 from financial_statements_rag.settings import Settings
 from financial_statements_rag.web.app import create_app
@@ -41,16 +41,16 @@ def create_test_client(tmp_path: Path) -> TestClient:
 
 def create_test_app(
     tmp_path: Path,
-    dispatcher: DocumentProcessingDispatcher | None = None,
+    dispatcher: DocumentJobDispatcher | None = None,
 ) -> FastAPI:
     resolved_dispatcher = dispatcher or RecordingDocumentProcessorDispatcher()
-    document_processing_service = DocumentProcessingService(
-        SQLiteDocumentProcessorEventLog(tmp_path / "events.sqlite3"),
+    document_job_service = DocumentJobService(
+        SQLiteDocumentJobEventLog(tmp_path / "events.sqlite3"),
         resolved_dispatcher,
     )
     return create_app(
-        document_processing_service=document_processing_service,
-        document_processing_dispatcher=resolved_dispatcher,
+        document_job_service=document_job_service,
+        document_job_dispatcher=resolved_dispatcher,
         settings=Settings(
             upload_dir=tmp_path / "uploads",
         ),
@@ -206,13 +206,13 @@ def test_unknown_job_returns_404(tmp_path: Path) -> None:
 
 
 def test_job_status_reads_latest_state_from_sqlite_history(tmp_path: Path) -> None:
-    event_log = SQLiteDocumentProcessorEventLog(tmp_path / "events.sqlite3")
+    event_log = SQLiteDocumentJobEventLog(tmp_path / "events.sqlite3")
     dispatcher = RecordingDocumentProcessorDispatcher()
-    document_processor = DocumentProcessingService(event_log, dispatcher)
+    document_job_service = DocumentJobService(event_log, dispatcher)
     client = TestClient(
         create_app(
-            document_processing_service=document_processor,
-            document_processing_dispatcher=dispatcher,
+            document_job_service=document_job_service,
+            document_job_dispatcher=dispatcher,
             settings=Settings(
                 upload_dir=tmp_path / "uploads",
             ),
@@ -226,9 +226,9 @@ def test_job_status_reads_latest_state_from_sqlite_history(tmp_path: Path) -> No
     assert match is not None
 
     asyncio.run(
-        document_processor.update_job_status(
+        document_job_service.update_job_status(
             match.group(1),
-            DocumentProcessingJobStatus.FAILED,
+            DocumentJobStatus.FAILED,
         ),
     )
 
@@ -252,13 +252,13 @@ def test_non_terminal_job_fragment_polls_every_two_seconds(tmp_path: Path) -> No
 
 
 def test_terminal_job_fragment_stops_polling(tmp_path: Path) -> None:
-    event_log = SQLiteDocumentProcessorEventLog(tmp_path / "events.sqlite3")
+    event_log = SQLiteDocumentJobEventLog(tmp_path / "events.sqlite3")
     dispatcher = RecordingDocumentProcessorDispatcher()
-    document_processor = DocumentProcessingService(event_log, dispatcher)
+    document_job_service = DocumentJobService(event_log, dispatcher)
     client = TestClient(
         create_app(
-            document_processing_service=document_processor,
-            document_processing_dispatcher=dispatcher,
+            document_job_service=document_job_service,
+            document_job_dispatcher=dispatcher,
             settings=Settings(
                 upload_dir=tmp_path / "uploads",
             ),
@@ -271,9 +271,9 @@ def test_terminal_job_fragment_stops_polling(tmp_path: Path) -> None:
     match = re.search(r"Job ID: ([a-f0-9]+)", upload.text)
     assert match is not None
     asyncio.run(
-        document_processor.update_job_status(
+        document_job_service.update_job_status(
             match.group(1),
-            DocumentProcessingJobStatus.SUCCEEDED,
+            DocumentJobStatus.SUCCEEDED,
         ),
     )
 

@@ -6,13 +6,13 @@
 
 | Area | Details |
 |------|---------|
-| Project | FastAPI backend for uploading financial statement PDFs and tracking document processing jobs. |
+| Project | FastAPI backend for uploading financial statement PDFs, indexing them for retrieval, and tracking document processing jobs. |
 | Language | Python 3.14.6 |
 | Package/build | `pyproject.toml` with Hatchling |
 | Web stack | FastAPI, Jinja2, HTMX, Materialize CSS |
-| State | Redis-backed ARQ dispatch, SQLite append-only `processing_jobs` history and latest-state reads |
-| Test/lint | pytest, mypy strict, Ruff |
-| Local services | Redis through Docker Compose |
+| State | Redis-backed ARQ dispatch, SQLite append-only `processing_jobs` history, and Postgres plus `pgvector` retrieval data |
+| Test/lint | pytest, mypy strict, Ruff, and GitHub Actions CI via `make build` |
+| Local services | Web app, ARQ worker, Redis, and Postgres plus `pgvector` through Docker Compose |
 
 ## Repository Tour
 
@@ -21,22 +21,22 @@ Trimmed project map:
 ```text
 .
 ├── financial_statements_rag/
-│   ├── jobs.py              # Job models, SQLite event log, processor service
+│   ├── errors.py            # Safe terminal and retryable processing error types
+│   ├── ingestion/           # PDF extraction, indexing, and LangGraph ingestion workflow
+│   ├── jobs/                # Job models, job service, SQLite event log, and ARQ dispatch
 │   ├── logging.py           # Package logging configuration
 │   ├── main.py              # ASGI app and CLI entrypoint
-│   ├── pipeline.py          # DocumentProcessingPipeline protocol and no-op implementation
-│   ├── queue.py             # ARQ dispatcher for enqueueing document jobs
 │   ├── settings.py          # FSR_* environment settings
-│   ├── storage.py           # DocumentUploadService and uploaded PDF persistence
-│   ├── worker.py            # ARQ worker startup, job processing, and status updates
+│   ├── storage.py           # Upload validation and local PDF storage
+│   ├── workers/             # ARQ worker modules and job handlers
 │   └── web/
 │       ├── app.py           # FastAPI app factory and dependency wiring
 │       ├── routes.py        # Index, upload, and job status routes
 │       └── templates/       # Jinja/HTMX/Materialize templates
 ├── tests/                   # Unit and route tests
-├── plans/                   # Superplan/superbuild implementation plan
-├── docs/                    # Design/spec documents
-├── examples/                # Example input PDFs
+├── docs/                    # Project docs; generated/private docs may be gitignored
+├── examples/                # Example input PDFs for manual testing
+├── scripts/install.sh       # Local virtualenv and editable install bootstrap
 ├── Dockerfile
 ├── docker-compose.yml
 ├── Makefile
@@ -45,12 +45,15 @@ Trimmed project map:
 
 ## Architecture
 
-- Uploads enter through `POST /upload`, are validated and saved by `DocumentUploadService`, then create one document processing job per PDF.
-- The FastAPI app creates a `JobRecord`, appends every lifecycle change to SQLite through `SQLiteDocumentProcessorEventLog`, and uses SQLite history for latest-state reads.
-- `RedisDocumentProcessorDispatcher` enqueues `process_document_job` onto ARQ. The worker loads the same `Settings`, configures logging, and updates job state as the pipeline runs.
+- Uploads enter through `POST /upload`, are validated and saved by `financial_statements_rag.storage.DocumentUploadService`, then create one document job per accepted PDF.
+- Invalid PDFs are rendered as per-file upload errors while valid PDFs in the same request still enqueue.
+- The FastAPI app creates a `DocumentJobRecord`, appends every lifecycle change to SQLite through `SQLiteDocumentJobEventLog`, and uses SQLite history for latest-state reads.
+- `RedisDocumentJobDispatcher` enqueues `process_document_job` onto ARQ. `financial_statements_rag.workers.process_document` loads the same `Settings`, configures logging, and updates job state as a LangGraph workflow runs.
 - SQLite is append-only history. Every job creation/status transition inserts a new `processing_jobs` row.
-- Status display reads the latest job state from SQLite history. The frontend polls `GET /jobs/{job_id}` every 2 seconds while a job is non-terminal.
-- The processing boundary is `DocumentProcessingPipeline` with `status(job_id)` and `process(document_path, job_id)`. The current implementation is `DefaultDocumentProcessorPipeline`.
+- Status display reads the latest job state from SQLite history. The index page renders recent jobs newest first. The frontend polls `GET /jobs/{job_id}` every 2 seconds while a job is non-terminal and stops polling after success or failure.
+- `process_document_job` calls `build_document_ingestion_workflow(...).ainvoke(...)` directly with `job_id` and `document_path`.
+- The LangGraph workflow loads PDF pages, infers report metadata, detects statement sections, extracts line-item candidates, builds chunks, creates embeddings, and persists indexed rows into Postgres plus `pgvector`.
+- Safe error contracts live in `financial_statements_rag/errors.py`. `RetryableProcessingError` triggers ARQ retry behavior before final failure is recorded.
 - FastAPI app construction is centralized in `financial_statements_rag/web/app.py`; route handlers should stay thin and delegate to services.
 
 ### Network Diagram
@@ -59,23 +62,28 @@ Trimmed project map:
 flowchart LR
     Browser["Browser / HTMX UI"]
     WebApp["FastAPI app\nfinancial_statements_rag.web.app"]
-    UploadService["DocumentUploadService"]
-    Dispatcher["RedisDocumentProcessorDispatcher"]
+    StorageModule["storage.py\nupload validation and storage"]
+    JobsModule["jobs/*\njob service, dispatcher,\nand event log"]
+    Dispatcher["RedisDocumentJobDispatcher"]
     Redis["Redis / ARQ broker"]
-    Worker["ARQ worker\nfinancial_statements_rag.worker"]
-    Pipeline["DocumentProcessingPipeline"]
-    EventLog["SQLiteDocumentProcessorEventLog"]
+    Worker["ARQ worker\nfinancial_statements_rag.workers.process_document"]
+    Workflow["LangGraph workflow\nfinancial_statements_rag.ingestion.workflow"]
+    EventLog["SQLiteDocumentJobEventLog"]
     UploadDir["Upload dir\nFSR_UPLOAD_DIR"]
     SQLite[(SQLite\nprocessing_jobs)]
+    Postgres[(Postgres\npgvector)]
 
     Browser -->|POST /upload and GET job status| WebApp
-    WebApp --> UploadService
-    UploadService --> UploadDir
-    WebApp --> EventLog
-    WebApp --> Dispatcher
+    WebApp --> StorageModule
+    WebApp --> JobsModule
+    StorageModule --> UploadDir
+    JobsModule --> EventLog
+    JobsModule --> Dispatcher
     Dispatcher --> Redis
     Redis --> Worker
-    Worker --> Pipeline
+    Worker --> Workflow
+    Workflow --> UploadDir
+    Workflow --> Postgres
     Worker --> EventLog
     EventLog --> SQLite
 ```
@@ -84,27 +92,33 @@ flowchart LR
 
 - Use Python `3.14.6`; `.python-version` is authoritative.
 - Install dependencies with `make install`.
-- Start Redis only with `make start_backing_services`.
-- Start the local FastAPI app with `make start`.
-- Start the full containerized stack with `docker compose up --build`.
+- Start the local Compose stack with `make start`.
+- `make start` runs `docker compose up --build` for the web app, worker, Redis, and Postgres plus `pgvector`.
 - Runtime settings use the `FSR_*` prefix:
   - `FSR_REDIS_URL`
+  - `FSR_POSTGRES_URL`
+  - `FSR_OPENAI_API_KEY`
   - `FSR_SQLITE_DATABASE_PATH`
   - `FSR_UPLOAD_DIR`
   - `FSR_MAX_UPLOAD_COUNT`
   - `FSR_LOG_LEVEL`
+  - `FSR_WORKER_CONCURRENCY`
+  - `FSR_EMBEDDING_MODEL`
+  - `FSR_CHUNK_SIZE`
+  - `FSR_CHUNK_OVERLAP`
+  - `FSR_INDEX_REMAINING_TEXT`
 - Do not commit runtime data under `data/`, build outputs, caches, or virtual environments.
 
 ## Common Tasks
 
 - `make install` — install the package and dev dependencies into `.venv`.
-- `make start_backing_services` — start Redis via Docker Compose.
-- `make start` — run the FastAPI app locally.
+- `make start` — run the Docker Compose stack with the FastAPI app, worker, Redis, and Postgres plus `pgvector`.
 - `make format` — format Python code with Ruff.
 - `make lint` — run mypy strict and Ruff checks.
 - `make test` — run pytest and doctests.
 - `make build` — clean, lint, test, and build the package.
-- `docker compose config` — validate the Compose file without starting containers.
+- `.github/workflows/ci.yml` — GitHub Actions workflow for pull requests and pushes to `main`, running `make build` on Python `3.14.6`.
+- `docker compose config` — validate the Compose file without starting containers, including the Postgres plus `pgvector` service.
 
 ## Testing And Quality Gates
 
@@ -122,7 +136,10 @@ flowchart LR
 - Keep route handlers small; push domain behavior into services or focused modules.
 - Use explicit protocols for swappable boundaries such as queues, processors, and event logs.
 - Keep SQLite `processing_jobs` append-only. Add reads, not update/delete behavior, unless the data model is intentionally redesigned.
-- Keep ARQ dispatch details centralized in `RedisDocumentProcessorDispatcher`.
+- Keep ARQ dispatch details centralized in `RedisDocumentJobDispatcher`.
+- Keep LangGraph workflow orchestration centralized in `financial_statements_rag/ingestion/workflow.py`.
+- Keep upload validation and local PDF storage in `financial_statements_rag/storage.py`.
+- Keep job event log, dispatcher, and document job service behavior in `financial_statements_rag/jobs/`.
 - Preserve `job_id` in job lifecycle logs and rendered status updates.
 - Use `FSR_*` for new runtime environment variables.
 - Update `README.md` when setup, commands, runtime behavior, or user-facing workflows change.
@@ -134,12 +151,13 @@ flowchart LR
 - Do not store uploads using user-provided filenames as paths.
 - Do not mutate SQLite history rows in place.
 - Do not add new global settings with non-`FSR_*` prefixes.
+- Do not log PDF contents, chunk text, embeddings, OpenAI keys, or Postgres credentials.
 - Do not run destructive git commands such as `git reset --hard` or `git checkout --` unless explicitly requested.
 
 ## Documentation Duties
 
 - Update `README.md` for significant feature, setup, command, or environment changes.
-- Update `plans/` or `docs/` only when the implementation plan or design spec would otherwise become misleading.
+- Update `docs/` only when design notes or project documentation would otherwise become misleading.
 - Keep this `AGENTS.md` current when project conventions change.
 
 ## Finish The Task Checklist

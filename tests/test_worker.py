@@ -3,37 +3,42 @@ from pathlib import Path
 
 from arq import Retry
 
-from financial_statements_rag.processing import (
-    DocumentProcessingService,
-    DocumentProcessingJobStatus,
-    SQLiteDocumentProcessorEventLog,
+from financial_statements_rag.errors import (
+    DocumentProcessingError,
+    RetryableProcessingError,
 )
-from financial_statements_rag.pipeline import RetryableProcessingError
-from financial_statements_rag.worker import WorkerSettings, process_document_job
+from financial_statements_rag.jobs import (
+    DocumentJobService,
+    DocumentJobStatus,
+    SQLiteDocumentJobEventLog,
+)
+from financial_statements_rag.workers.process_document import (
+    WorkerSettings,
+    process_document_job,
+)
 
 
-class SuccessfulPipeline:
-    async def status(self, job_id: str) -> None:  # pragma: no cover - not used in tests
-        return None
-
-    async def process(self, document_path: Path, job_id: str) -> None:
-        return None
+class SuccessfulWorkflow:
+    async def ainvoke(self, state: dict[str, object]) -> dict[str, object]:
+        return state
 
 
-class TerminalFailurePipeline:
-    async def status(self, job_id: str) -> None:  # pragma: no cover - not used in tests
-        return None
-
-    async def process(self, document_path: Path, job_id: str) -> None:
-        raise ValueError("bad document")
+class TerminalFailureWorkflow:
+    async def ainvoke(self, state: dict[str, object]) -> dict[str, object]:
+        raise DocumentProcessingError("document_invalid", "Document is invalid")
 
 
-class RetryableFailurePipeline:
-    async def status(self, job_id: str) -> None:  # pragma: no cover - not used in tests
-        return None
+class UnexpectedFailureWorkflow:
+    async def ainvoke(self, state: dict[str, object]) -> dict[str, object]:
+        raise ValueError("secret details")
 
-    async def process(self, document_path: Path, job_id: str) -> None:
-        raise RetryableProcessingError("redis timed out")
+
+class RetryableFailureWorkflow:
+    async def ainvoke(self, state: dict[str, object]) -> dict[str, object]:
+        raise RetryableProcessingError(
+            "index_unavailable",
+            "Indexing service is temporarily unavailable",
+        )
 
 
 class RecordingDocumentProcessorDispatcher:
@@ -46,20 +51,20 @@ class RecordingDocumentProcessorDispatcher:
 
 async def _worker_context(
     tmp_path: Path,
-    pipeline: object,
+    workflow: object,
     *,
     job_try: int = 1,
     max_tries: int = 3,
-) -> tuple[dict[str, object], DocumentProcessingService, str]:
-    service = DocumentProcessingService(
-        SQLiteDocumentProcessorEventLog(tmp_path / "events.sqlite3"),
+) -> tuple[dict[str, object], DocumentJobService, str]:
+    service = DocumentJobService(
+        SQLiteDocumentJobEventLog(tmp_path / "events.sqlite3"),
         RecordingDocumentProcessorDispatcher(),
     )
     job = await service.create_job("statement.pdf", Path("data/uploads/abc.pdf"))
     return (
         {
-            "document_processing_service": service,
-            "process_document_pipeline": pipeline,
+            "document_job_service": service,
+            "document_ingestion_workflow": workflow,
             "job_try": job_try,
             "max_tries": max_tries,
         },
@@ -76,31 +81,50 @@ def test_worker_marks_job_succeeded(tmp_path: Path) -> None:
     async def run_test() -> None:
         context, service, job_id = await _worker_context(
             tmp_path,
-            SuccessfulPipeline(),
+            SuccessfulWorkflow(),
         )
 
         await process_document_job(context, job_id, "data/uploads/abc.pdf")
 
         updated = await service.get_job(job_id)
         assert updated is not None
-        assert updated.status == DocumentProcessingJobStatus.SUCCEEDED
+        assert updated.status == DocumentJobStatus.SUCCEEDED
 
     asyncio.run(run_test())
 
 
-def test_worker_marks_job_failed_for_terminal_errors(tmp_path: Path) -> None:
+def test_worker_records_safe_message_for_known_processing_error(
+    tmp_path: Path,
+) -> None:
     async def run_test() -> None:
         context, service, job_id = await _worker_context(
             tmp_path,
-            TerminalFailurePipeline(),
+            TerminalFailureWorkflow(),
         )
 
         await process_document_job(context, job_id, "data/uploads/abc.pdf")
 
         updated = await service.get_job(job_id)
         assert updated is not None
-        assert updated.status == DocumentProcessingJobStatus.FAILED
-        assert updated.error_message == "bad document"
+        assert updated.status == DocumentJobStatus.FAILED
+        assert updated.error_message == "Document is invalid"
+
+    asyncio.run(run_test())
+
+
+def test_worker_masks_unexpected_errors(tmp_path: Path) -> None:
+    async def run_test() -> None:
+        context, service, job_id = await _worker_context(
+            tmp_path,
+            UnexpectedFailureWorkflow(),
+        )
+
+        await process_document_job(context, job_id, "data/uploads/abc.pdf")
+
+        updated = await service.get_job(job_id)
+        assert updated is not None
+        assert updated.status == DocumentJobStatus.FAILED
+        assert updated.error_message == "Document processing failed unexpectedly"
 
     asyncio.run(run_test())
 
@@ -109,7 +133,7 @@ def test_worker_retries_retryable_errors_before_final_attempt(tmp_path: Path) ->
     async def run_test() -> None:
         context, service, job_id = await _worker_context(
             tmp_path,
-            RetryableFailurePipeline(),
+            RetryableFailureWorkflow(),
             job_try=1,
             max_tries=3,
         )
@@ -123,7 +147,7 @@ def test_worker_retries_retryable_errors_before_final_attempt(tmp_path: Path) ->
 
         updated = await service.get_job(job_id)
         assert updated is not None
-        assert updated.status == DocumentProcessingJobStatus.STARTED
+        assert updated.status == DocumentJobStatus.STARTED
 
     asyncio.run(run_test())
 
@@ -132,7 +156,7 @@ def test_worker_marks_job_failed_after_final_retryable_attempt(tmp_path: Path) -
     async def run_test() -> None:
         context, service, job_id = await _worker_context(
             tmp_path,
-            RetryableFailurePipeline(),
+            RetryableFailureWorkflow(),
             job_try=3,
             max_tries=3,
         )
@@ -141,7 +165,35 @@ def test_worker_marks_job_failed_after_final_retryable_attempt(tmp_path: Path) -
 
         updated = await service.get_job(job_id)
         assert updated is not None
-        assert updated.status == DocumentProcessingJobStatus.FAILED
-        assert updated.error_message == "redis timed out"
+        assert updated.status == DocumentJobStatus.FAILED
+        assert updated.error_message == "Indexing service is temporarily unavailable"
+
+    asyncio.run(run_test())
+
+
+def test_worker_invokes_workflow_with_job_id_and_document_path(tmp_path: Path) -> None:
+    class RecordingWorkflow:
+        def __init__(self) -> None:
+            self.invocations: list[dict[str, object]] = []
+
+        async def ainvoke(self, state: dict[str, object]) -> dict[str, object]:
+            self.invocations.append(state)
+            return state
+
+    async def run_test() -> None:
+        workflow = RecordingWorkflow()
+        context, _service, job_id = await _worker_context(
+            tmp_path,
+            workflow,
+        )
+
+        await process_document_job(context, job_id, "data/uploads/abc.pdf")
+
+        assert workflow.invocations == [
+            {
+                "job_id": job_id,
+                "document_path": Path("data/uploads/abc.pdf"),
+            }
+        ]
 
     asyncio.run(run_test())

@@ -8,22 +8,22 @@ from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.templating import Jinja2Templates
 from starlette.responses import Response
 
-from financial_statements_rag.processing import (
-    DocumentProcessingService,
-    DocumentUploadService,
-    DocumentProcessingJobRecord,
-    DocumentProcessingJobStatus,
-    DocumentProcessorUnavailableError,
+from financial_statements_rag.jobs import (
+    DocumentJobRecord,
+    DocumentJobService,
+    DocumentJobStatus,
+    DocumentJobUnavailableError,
 )
 from financial_statements_rag.logging import get_logger
 from financial_statements_rag.settings import Settings
+from financial_statements_rag.storage import DocumentUploadService
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
 templates = Jinja2Templates(directory=TEMPLATE_DIR)
 logger = get_logger("web.routes")
 TERMINAL_STATUSES = {
-    DocumentProcessingJobStatus.SUCCEEDED,
-    DocumentProcessingJobStatus.FAILED,
+    DocumentJobStatus.SUCCEEDED,
+    DocumentJobStatus.FAILED,
 }
 
 
@@ -37,10 +37,8 @@ def _settings(request: Request) -> Settings:
     return cast(Settings, request.app.state.settings)
 
 
-def _document_processing_service(request: Request) -> DocumentProcessingService:
-    return cast(
-        DocumentProcessingService, request.app.state.document_processing_service
-    )
+def _document_job_service(request: Request) -> DocumentJobService:
+    return cast(DocumentJobService, request.app.state.document_job_service)
 
 
 def _document_upload_service(request: Request) -> DocumentUploadService:
@@ -52,7 +50,7 @@ def create_router() -> APIRouter:
 
     @router.get("/")
     async def index(request: Request) -> Response:
-        jobs = await _document_processing_service(request).job_history()
+        jobs = await _document_job_service(request).job_history()
         return templates.TemplateResponse(
             request,
             "index.html",
@@ -79,9 +77,9 @@ def create_router() -> APIRouter:
             )
 
         document_upload_service = _document_upload_service(request)
-        document_processing_service = _document_processing_service(request)
+        document_job_service = _document_job_service(request)
 
-        jobs: list[DocumentProcessingJobRecord] = []
+        jobs: list[DocumentJobRecord] = []
         errors: list[UploadError] = []
 
         for upload_file in files:
@@ -94,11 +92,11 @@ def create_router() -> APIRouter:
                 continue
 
             try:
-                job = await document_processing_service.create_job(
+                job = await document_job_service.create_job(
                     document.original_filename,
                     document.path,
                 )
-            except DocumentProcessorUnavailableError:
+            except DocumentJobUnavailableError:
                 raise HTTPException(
                     status_code=503,
                     detail="Document processing is temporarily unavailable",
@@ -118,7 +116,7 @@ def create_router() -> APIRouter:
 
     @router.get("/jobs/{job_id}")
     async def job_status(request: Request, job_id: str) -> Response:
-        job = await _document_processing_service(request).get_job(job_id)
+        job = await _document_job_service(request).get_job(job_id)
         if job is None:
             logger.info("unknown job lookup", extra={"job_id": job_id})
             raise HTTPException(status_code=404, detail="Job not found")

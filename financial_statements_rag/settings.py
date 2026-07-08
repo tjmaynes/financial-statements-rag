@@ -4,6 +4,10 @@ from dataclasses import dataclass
 from os import environ
 from pathlib import Path
 
+EMBEDDING_MODEL_DIMENSIONS = {
+    "text-embedding-3-small": 1536,
+}
+
 
 @dataclass(frozen=True)
 class Settings:
@@ -13,6 +17,34 @@ class Settings:
     sqlite_database_path: Path = Path("data/financial_statements_rag.sqlite3")
     log_level: str = "INFO"
     worker_concurrency: int = 3
+    postgres_url: str = ""
+    openai_api_key: str = ""
+    embedding_model: str = "text-embedding-3-small"
+    embedding_dimension: int = 1536
+    chunk_size: int = 1000
+    chunk_overlap: int = 150
+    index_remaining_text: bool = True
+
+
+def _required_env(name: str) -> str:
+    value = environ.get(name)
+    if value is None or value == "":
+        raise RuntimeError(f"Required environment variable missing: {name}")
+    return value
+
+
+def _bool_env(name: str, default: bool) -> bool:
+    raw_value = environ.get(name)
+    if raw_value is None:
+        return default
+    return raw_value.lower() in {"1", "true", "yes", "on"}
+
+
+def _embedding_dimension(model: str) -> int:
+    try:
+        return EMBEDDING_MODEL_DIMENSIONS[model]
+    except KeyError:
+        raise RuntimeError(f"Unsupported embedding model: {model}") from None
 
 
 def load_settings_from_env() -> Settings:
@@ -23,6 +55,7 @@ def load_settings_from_env() -> Settings:
             "data/financial_statements_rag.sqlite3",
         ),
     )
+    embedding_model = environ.get("FSR_EMBEDDING_MODEL", "text-embedding-3-small")
 
     return Settings(
         upload_dir=Path(environ.get("FSR_UPLOAD_DIR", "data/uploads")),
@@ -31,4 +64,11 @@ def load_settings_from_env() -> Settings:
         sqlite_database_path=sqlite_database_path,
         log_level=environ.get("FSR_LOG_LEVEL", "INFO"),
         worker_concurrency=int(environ.get("FSR_WORKER_CONCURRENCY", "3")),
+        postgres_url=_required_env("FSR_POSTGRES_URL"),
+        openai_api_key=_required_env("FSR_OPENAI_API_KEY"),
+        embedding_model=embedding_model,
+        embedding_dimension=_embedding_dimension(embedding_model),
+        chunk_size=int(environ.get("FSR_CHUNK_SIZE", "1000")),
+        chunk_overlap=int(environ.get("FSR_CHUNK_OVERLAP", "150")),
+        index_remaining_text=_bool_env("FSR_INDEX_REMAINING_TEXT", True),
     )
