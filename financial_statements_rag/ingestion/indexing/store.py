@@ -410,7 +410,7 @@ class PostgresIndexStore:
               embedding
             ) VALUES (
               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-              CASE WHEN %s IS NULL THEN NULL ELSE CAST(%s AS vector) END
+              CAST(%s AS vector)
             )
             ON CONFLICT (chunk_id) DO UPDATE SET
               document_id = EXCLUDED.document_id,
@@ -448,7 +448,6 @@ class PostgresIndexStore:
                     chunk.section_title,
                     chunk.page_start,
                     chunk.page_end,
-                    _vector_literal(chunk.embedding),
                     _vector_literal(chunk.embedding),
                 )
                 for chunk in chunks

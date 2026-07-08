@@ -181,6 +181,36 @@ def test_upsert_chunks_is_idempotent() -> None:
     assert chunk_statements[0] == chunk_statements[1]
 
 
+def test_upsert_chunks_uses_single_typed_embedding_parameter() -> None:
+    connection = RecordingConnection()
+    store = PostgresIndexStore(
+        "postgresql://localhost/fsr",
+        connection_factory=lambda _dsn: connection,
+    )
+
+    document = _document()
+    section = _section()
+    line_item = _line_item()
+    chunk = _chunk()
+
+    store.upsert_document(document)
+    store.upsert_statement_sections(document.document_id, [section])
+    store.upsert_statement_line_items(document.document_id, [line_item])
+    store.upsert_chunks(document.document_id, [chunk])
+
+    chunk_insert = next(
+        (sql, params)
+        for sql, params in connection.executed
+        if "INSERT INTO document_chunks" in sql
+    )
+    sql, params = chunk_insert
+
+    assert "CAST(%s AS vector)" in sql
+    assert "CASE WHEN %s IS NULL" not in sql
+    assert isinstance(params, tuple)
+    assert len(params) == 17
+
+
 def test_transient_store_error_becomes_retryable() -> None:
     store = PostgresIndexStore(
         "postgresql://localhost/fsr",
