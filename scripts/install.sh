@@ -22,7 +22,7 @@ function main() {
 
   python -m pip install build
 
-  python -m pip install --no-cache -e '.[dev]'
+  python -m pip install -e '.[dev]'
 }
 
 main
