@@ -12,7 +12,7 @@ format:
 test:
 	. .venv/bin/activate; python -m pytest financial_statements_rag tests \
 		--doctest-modules \
-		--junitxml=reports/test-results-$(shell cat .python-version).xml
+		--junitxml=test-results-$(shell cat .python-version).xml
 
 .PHONY: build
 build: clean lint test
@@ -25,6 +25,9 @@ ship_it: build
 
 start:
 	docker compose up --build
+
+clean_docker:
+	docker compose down -v --remove-orphans
 
 clean:
 	rm -rf dist/ build/ reports/ *.egg-info/ *cache

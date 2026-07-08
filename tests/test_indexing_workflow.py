@@ -208,6 +208,7 @@ def test_workflow_executes_nodes_in_order() -> None:
             {
                 "job_id": "job-123",
                 "document_path": Path("data/uploads/report.pdf"),
+                "original_filename": "report.pdf",
             }
         )
     )
@@ -269,12 +270,14 @@ def test_warning_path_still_persists_chunks() -> None:
             {
                 "job_id": "job-warning",
                 "document_path": Path("data/uploads/report.pdf"),
+                "original_filename": "report.pdf",
             }
         )
     )
 
     assert state["warnings"] == ["NO_STATEMENT_SECTIONS_FOUND"]
     assert store.document is not None
+    assert store.document.original_filename == "report.pdf"
     assert store.document.extraction_warnings == ("NO_STATEMENT_SECTIONS_FOUND",)
     assert store.line_items_count == 0
     assert store.chunks_count > 0

@@ -28,9 +28,6 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
 
-      - name: Create virtual environment
-        run: python -m venv .venv
-
       - name: Install dependencies
         run: make install
 

@@ -59,7 +59,7 @@ Runtime settings use the `FSR_*` prefix:
 
 ## Upload Flow
 
-The index page accepts up to 10 PDF files per upload. Each accepted PDF is validated and stored by `financial_statements_rag.storage.DocumentUploadService` with a generated safe filename while preserving the original filename as metadata. The `financial_statements_rag.jobs.DocumentJobService` then creates one document job per accepted PDF, appends a `DOCUMENT_PROCESSING_JOB_CREATED` event to SQLite, and enqueues a background ARQ task.
+The index page accepts up to 10 PDF files per upload. Each accepted PDF is validated and stored by `financial_statements_rag.storage.DocumentUploadService` with a generated safe filename while preserving the original filename in job metadata. The `financial_statements_rag.jobs.DocumentJobService` then creates one document job per accepted PDF, appends a `DOCUMENT_PROCESSING_JOB_CREATED` event to SQLite, and enqueues a background ARQ task.
 
 Invalid PDFs are reported in the upload response without preventing valid PDFs in the same request from being accepted. If Redis or ARQ enqueueing is unavailable, the upload returns `503` with `Document processing is temporarily unavailable`.
 
@@ -72,7 +72,7 @@ Supported statuses:
 - `DOCUMENT_PROCESSING_JOB_SUCCEEDED`
 - `DOCUMENT_PROCESSING_JOB_FAILED`
 
-Redis powers the ARQ broker. SQLite records append-only job lifecycle events in the `processing_jobs` table and is the source for latest job status reads.
+Redis powers the ARQ broker. SQLite records append-only job lifecycle events in the `processing_jobs` table and stores source-specific fields such as `original_filename` and `stored_path` inside a JSON-valid `job_metadata` column. SQLite remains the source for latest job status reads.
 
 ## Document Processing Workflow
 

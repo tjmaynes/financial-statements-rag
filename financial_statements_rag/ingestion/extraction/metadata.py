@@ -22,35 +22,57 @@ class ReportMetadata:
 
 class ReportMetadataInferer:
     def infer(self, pages: Sequence[ExtractedPage]) -> ReportMetadata:
-        snippet = "\n".join(page.text for page in pages[:3])
+        header_snippet = "\n".join(page.text for page in pages[:3])
+        context_snippet = "\n".join(page.text for page in pages[:10])
 
-        report_date = _extract_report_date(snippet)
-        report_type = _extract_report_type(snippet)
+        report_date = _extract_report_date(header_snippet)
+        report_type = _extract_report_type(header_snippet)
+        fiscal_quarter = _extract_fiscal_quarter(
+            header_snippet,
+            report_date,
+            report_type,
+        )
 
         return ReportMetadata(
-            company_name=_extract_company_name(snippet),
-            ticker=_extract_ticker(snippet),
+            company_name=_extract_company_name(header_snippet),
+            ticker=_extract_ticker(header_snippet),
             fiscal_year=report_date.year if report_date is not None else None,
-            fiscal_quarter=_extract_fiscal_quarter(snippet, report_date, report_type),
+            fiscal_quarter=fiscal_quarter,
             report_date=report_date,
             report_type=report_type,
-            currency=_extract_currency(snippet),
-            scale=_extract_scale(snippet),
+            currency=_extract_currency(context_snippet),
+            scale=_extract_scale(context_snippet),
         )
 
 
 def _extract_company_name(snippet: str) -> str | None:
-    for raw_line in snippet.splitlines():
-        line = raw_line.strip()
-        if not line:
+    lines = [raw_line.strip() for raw_line in snippet.splitlines() if raw_line.strip()]
+
+    for index, line in enumerate(lines):
+        if "exact name of registrant as specified in its charter" not in line.lower():
             continue
-        if re.search(
-            r"(NASDAQ|NYSE|FORM 10-[QK]|QUARTERLY REPORT|ANNUAL REPORT)", line
-        ):
+        if index == 0:
             continue
-        if re.fullmatch(r"[A-Z0-9][A-Z0-9 .,&'()/-]+", line):
-            return line
+        candidate = lines[index - 1]
+        if _is_possible_company_name(candidate):
+            return _normalize_company_name(candidate)
+
+    for line in lines:
+        if _is_fallback_company_name(line):
+            return _normalize_company_name(line)
     return None
+
+
+def _normalize_company_name(name: str) -> str | None:
+    normalized = name.upper().replace(",", " ")
+    normalized = re.sub(r"[()]", " ", normalized)
+    normalized = re.sub(
+        r"(?:\s+\b(?:INC|INCORPORATED|LLC|L\.L\.C\.|CORPORATION|CORP|LTD|LIMITED|PLC)\b\.?)+$",
+        " ",
+        normalized,
+    )
+    normalized = re.sub(r"\s+", " ", normalized).strip(" .")
+    return normalized or None
 
 
 def _extract_ticker(snippet: str) -> str | None:
@@ -59,6 +81,19 @@ def _extract_ticker(snippet: str) -> str | None:
         snippet,
     )
     if match is None:
+        for raw_line in snippet.splitlines():
+            line = raw_line.strip()
+            if not re.search(r"(nasdaq|nyse|otcqx)", line, flags=re.IGNORECASE):
+                continue
+            exchange_match = re.search(
+                r"\b([A-Z][A-Z0-9.-]{0,9})\b\s+"
+                r"(?:The\s+)?"
+                r"(?:Nasdaq|NYSE|NYSE American|New York Stock Exchange|OTCQX)\b",
+                line,
+                flags=re.IGNORECASE,
+            )
+            if exchange_match is not None:
+                return exchange_match.group(1)
         return None
     return match.group(1)
 
@@ -106,20 +141,85 @@ def _extract_currency(snippet: str) -> str | None:
         or "usd" in lowered
     ):
         return "USD"
+    if snippet.count("$") >= 3:
+        return "USD"
     return None
 
 
 def _extract_scale(snippet: str) -> str | None:
     lowered = snippet.lower()
-    if "in billions" in lowered:
-        return "billions"
-    if "in millions" in lowered:
-        return "millions"
-    if "in thousands" in lowered:
-        return "thousands"
-    return None
+    scales = ("billions", "millions", "thousands")
+    counts = {scale: len(re.findall(rf"\b{scale}\b", lowered)) for scale in scales}
+    first_indexes = {
+        scale: lowered.find(scale) if counts[scale] > 0 else -1 for scale in scales
+    }
+    matching_scales = [scale for scale in scales if counts[scale] > 0]
+    if not matching_scales:
+        return None
+    return min(
+        matching_scales,
+        key=lambda scale: (-counts[scale], first_indexes[scale]),
+    )
 
 
 def _month_name_to_iso(raw_date: str) -> str:
     parsed = datetime.strptime(raw_date, "%B %d, %Y").date()
     return parsed.isoformat()
+
+
+def _is_possible_company_name(line: str) -> bool:
+    if not line or any(character.isdigit() for character in line):
+        return False
+    if _is_company_boilerplate(line):
+        return False
+    if not any(character.isalpha() for character in line):
+        return False
+    return len(line.strip()) >= 3
+
+
+def _is_fallback_company_name(line: str) -> bool:
+    if not _is_possible_company_name(line):
+        return False
+    if re.fullmatch(r"[A-Z][A-Z .,&'()/-]+", line):
+        return True
+    return (
+        re.search(
+            r"\b("
+            r"inc\.?|corp\.?|corporation|company|co\.|holdings?|group|limited|ltd\.?|plc"
+            r")\b",
+            line,
+            flags=re.IGNORECASE,
+        )
+        is not None
+    )
+
+
+def _is_company_boilerplate(line: str) -> bool:
+    normalized = " ".join(line.upper().split())
+    boilerplate_terms = (
+        "UNITED STATES",
+        "SECURITIES AND EXCHANGE COMMISSION",
+        "WASHINGTON, D.C.",
+        "FORM 10-Q",
+        "FORM 10-K",
+        "QUARTERLY REPORT",
+        "ANNUAL REPORT",
+        "COMMISSION FILE NUMBER",
+        "TRADING SYMBOL",
+        "REGISTRANT",
+        "TELEPHONE NUMBER",
+        "TITLE OF EACH CLASS",
+        "STATE OR OTHER JURISDICTION",
+        "INCORPORATION OR ORGANIZATION",
+        "IDENTIFICATION NO.",
+        "ADDRESS OF PRINCIPAL EXECUTIVE OFFICES",
+        "LARGE ACCELERATED FILER",
+        "ACCELERATED FILER",
+        "NON-ACCELERATED FILER",
+        "SMALLER REPORTING COMPANY",
+        "EMERGING GROWTH COMPANY",
+        "COMMON STOCK",
+    )
+    if normalized == "OR":
+        return True
+    return any(term in normalized for term in boilerplate_terms)

@@ -11,9 +11,10 @@ from financial_statements_rag.jobs import (
     DocumentJobService,
     DocumentJobStatus,
     SQLiteDocumentJobEventLog,
+    build_upload_job_metadata,
 )
+from financial_statements_rag.workers import WorkerSettings
 from financial_statements_rag.workers.process_document import (
-    WorkerSettings,
     process_document_job,
 )
 
@@ -43,10 +44,10 @@ class RetryableFailureWorkflow:
 
 class RecordingDocumentProcessorDispatcher:
     def __init__(self) -> None:
-        self.enqueued: list[tuple[str, Path]] = []
+        self.enqueued: list[tuple[str, dict[str, object]]] = []
 
-    async def enqueue(self, job_id: str, document_path: Path) -> None:
-        self.enqueued.append((job_id, document_path))
+    async def enqueue(self, job_id: str, job_metadata: dict[str, object]) -> None:
+        self.enqueued.append((job_id, job_metadata))
 
 
 async def _worker_context(
@@ -60,7 +61,12 @@ async def _worker_context(
         SQLiteDocumentJobEventLog(tmp_path / "events.sqlite3"),
         RecordingDocumentProcessorDispatcher(),
     )
-    job = await service.create_job("statement.pdf", Path("data/uploads/abc.pdf"))
+    job = await service.create_job(
+        build_upload_job_metadata(
+            original_filename="statement.pdf",
+            stored_path=Path("data/uploads/abc.pdf"),
+        )
+    )
     return (
         {
             "document_job_service": service,
@@ -84,7 +90,14 @@ def test_worker_marks_job_succeeded(tmp_path: Path) -> None:
             SuccessfulWorkflow(),
         )
 
-        await process_document_job(context, job_id, "data/uploads/abc.pdf")
+        await process_document_job(
+            context,
+            job_id,
+            build_upload_job_metadata(
+                original_filename="statement.pdf",
+                stored_path=Path("data/uploads/abc.pdf"),
+            ),
+        )
 
         updated = await service.get_job(job_id)
         assert updated is not None
@@ -102,7 +115,14 @@ def test_worker_records_safe_message_for_known_processing_error(
             TerminalFailureWorkflow(),
         )
 
-        await process_document_job(context, job_id, "data/uploads/abc.pdf")
+        await process_document_job(
+            context,
+            job_id,
+            build_upload_job_metadata(
+                original_filename="statement.pdf",
+                stored_path=Path("data/uploads/abc.pdf"),
+            ),
+        )
 
         updated = await service.get_job(job_id)
         assert updated is not None
@@ -119,7 +139,14 @@ def test_worker_masks_unexpected_errors(tmp_path: Path) -> None:
             UnexpectedFailureWorkflow(),
         )
 
-        await process_document_job(context, job_id, "data/uploads/abc.pdf")
+        await process_document_job(
+            context,
+            job_id,
+            build_upload_job_metadata(
+                original_filename="statement.pdf",
+                stored_path=Path("data/uploads/abc.pdf"),
+            ),
+        )
 
         updated = await service.get_job(job_id)
         assert updated is not None
@@ -139,7 +166,14 @@ def test_worker_retries_retryable_errors_before_final_attempt(tmp_path: Path) ->
         )
 
         try:
-            await process_document_job(context, job_id, "data/uploads/abc.pdf")
+            await process_document_job(
+                context,
+                job_id,
+                build_upload_job_metadata(
+                    original_filename="statement.pdf",
+                    stored_path=Path("data/uploads/abc.pdf"),
+                ),
+            )
         except Retry:
             pass
         else:  # pragma: no cover - defensive
@@ -161,7 +195,14 @@ def test_worker_marks_job_failed_after_final_retryable_attempt(tmp_path: Path) -
             max_tries=3,
         )
 
-        await process_document_job(context, job_id, "data/uploads/abc.pdf")
+        await process_document_job(
+            context,
+            job_id,
+            build_upload_job_metadata(
+                original_filename="statement.pdf",
+                stored_path=Path("data/uploads/abc.pdf"),
+            ),
+        )
 
         updated = await service.get_job(job_id)
         assert updated is not None
@@ -187,12 +228,20 @@ def test_worker_invokes_workflow_with_job_id_and_document_path(tmp_path: Path) -
             workflow,
         )
 
-        await process_document_job(context, job_id, "data/uploads/abc.pdf")
+        await process_document_job(
+            context,
+            job_id,
+            build_upload_job_metadata(
+                original_filename="statement.pdf",
+                stored_path=Path("data/uploads/abc.pdf"),
+            ),
+        )
 
         assert workflow.invocations == [
             {
                 "job_id": job_id,
                 "document_path": Path("data/uploads/abc.pdf"),
+                "original_filename": "statement.pdf",
             }
         ]
 

@@ -13,6 +13,7 @@ from financial_statements_rag.jobs import (
     DocumentJobService,
     DocumentJobStatus,
     DocumentJobUnavailableError,
+    build_upload_job_metadata,
 )
 from financial_statements_rag.logging import get_logger
 from financial_statements_rag.settings import Settings
@@ -93,8 +94,10 @@ def create_router() -> APIRouter:
 
             try:
                 job = await document_job_service.create_job(
-                    document.original_filename,
-                    document.path,
+                    build_upload_job_metadata(
+                        original_filename=document.original_filename,
+                        stored_path=document.path,
+                    )
                 )
             except DocumentJobUnavailableError:
                 raise HTTPException(

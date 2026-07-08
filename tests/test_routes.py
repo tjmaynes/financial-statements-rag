@@ -22,14 +22,14 @@ JOB_STATUS_TEMPLATE = (
 
 class RecordingDocumentProcessorDispatcher:
     def __init__(self) -> None:
-        self.enqueued: list[tuple[str, Path]] = []
+        self.enqueued: list[tuple[str, dict[str, object]]] = []
 
-    async def enqueue(self, job_id: str, document_path: Path) -> None:
-        self.enqueued.append((job_id, document_path))
+    async def enqueue(self, job_id: str, job_metadata: dict[str, object]) -> None:
+        self.enqueued.append((job_id, job_metadata))
 
 
 class FailingDocumentProcessorDispatcher:
-    async def enqueue(self, job_id: str, document_path: Path) -> None:
+    async def enqueue(self, job_id: str, job_metadata: dict[str, object]) -> None:
         raise RuntimeError("redis unavailable")
 
 
@@ -121,7 +121,9 @@ def test_upload_creates_one_enqueued_uploaded_job_per_pdf(tmp_path: Path) -> Non
     assert 'id="jobs-list"' not in response.text
     assert len(dispatcher.enqueued) == 2
     assert all(
-        document_path.suffix == ".pdf" for _, document_path in dispatcher.enqueued
+        isinstance(job_metadata.get("stored_path"), str)
+        and str(job_metadata["stored_path"]).endswith(".pdf")
+        for _, job_metadata in dispatcher.enqueued
     )
 
 

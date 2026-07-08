@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Any, cast
 
 from arq import Retry
-from arq.connections import RedisSettings
 
 from financial_statements_rag.errors import (
     DocumentProcessingError,
@@ -26,6 +25,7 @@ from financial_statements_rag.ingestion.workflow import (
 from financial_statements_rag.jobs import (
     DocumentJobService,
     DocumentJobStatus,
+    JobMetadata,
     RedisDocumentJobDispatcher,
     SQLiteDocumentJobEventLog,
 )
@@ -75,7 +75,7 @@ def _safe_failure_message(error: DocumentProcessingError) -> str:
 async def process_document_job(
     ctx: dict[str, Any],
     job_id: str,
-    document_path: str,
+    job_metadata: JobMetadata,
 ) -> None:
     document_job_service = cast(
         DocumentJobService,
@@ -87,6 +87,8 @@ async def process_document_job(
     )
 
     try:
+        document_path = _document_path_from_job_metadata(job_metadata)
+        original_filename = job_metadata.get("original_filename")
         await document_job_service.update_job_status(
             job_id,
             DocumentJobStatus.STARTED,
@@ -94,7 +96,10 @@ async def process_document_job(
         await document_ingestion_workflow.ainvoke(
             {
                 "job_id": job_id,
-                "document_path": Path(document_path),
+                "document_path": document_path,
+                "original_filename": (
+                    original_filename if isinstance(original_filename, str) else None
+                ),
             }
         )
         await document_job_service.update_job_status(
@@ -130,14 +135,11 @@ async def process_document_job(
         logger.exception("worker job failed", extra={"job_id": job_id})
 
 
-_settings = load_settings_from_env()
-
-
-class WorkerSettings:
-    functions = [process_document_job]
-    on_startup = startup
-    on_shutdown = shutdown
-    redis_settings = RedisSettings.from_dsn(_settings.redis_url)
-    max_jobs = _settings.worker_concurrency
-    max_tries = DEFAULT_MAX_TRIES
-    retry_jobs = True
+def _document_path_from_job_metadata(job_metadata: JobMetadata) -> Path:
+    stored_path = job_metadata.get("stored_path")
+    if not isinstance(stored_path, str) or not stored_path:
+        raise DocumentProcessingError(
+            "JOB_METADATA_INVALID",
+            "Document job metadata is invalid",
+        )
+    return Path(stored_path)

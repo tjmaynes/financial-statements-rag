@@ -174,3 +174,5 @@ cython_debug/
 
 plans/
 docs/superpowers/*
+
+test-results*

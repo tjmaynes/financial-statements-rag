@@ -88,6 +88,7 @@ class IndexStore(Protocol):
 class DocumentIngestionState(TypedDict, total=False):
     job_id: str
     document_path: Path
+    original_filename: str | None
     pages: list[ExtractedPage]
     metadata: ReportMetadata
     section_detection: StatementDetectionResult
@@ -296,6 +297,7 @@ def _chunk_extracted_content(
     document = _build_indexed_document(
         job_id=state["job_id"],
         document_path=state["document_path"],
+        original_filename=state.get("original_filename"),
         pages=state["pages"],
         metadata=state["metadata"],
         warnings=tuple(state.get("warnings", [])),
@@ -341,6 +343,7 @@ def _build_indexed_document(
     *,
     job_id: str,
     document_path: Path,
+    original_filename: str | None,
     pages: Sequence[ExtractedPage],
     metadata: ReportMetadata,
     warnings: tuple[str, ...],
@@ -349,6 +352,7 @@ def _build_indexed_document(
         document_id=build_document_id(job_id, document_path),
         job_id=job_id,
         stored_path=document_path.as_posix(),
+        original_filename=original_filename,
         company_name=metadata.company_name,
         ticker=metadata.ticker,
         fiscal_year=metadata.fiscal_year,

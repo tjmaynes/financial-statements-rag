@@ -1,18 +1,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Protocol
 
 from arq.connections import ArqRedis, RedisSettings, create_pool
 
+from financial_statements_rag.jobs.models import JobMetadata
 from financial_statements_rag.logging import get_logger
 
 logger = get_logger("jobs.dispatcher")
 
 
 class DocumentJobDispatcher(Protocol):
-    async def enqueue(self, job_id: str, document_path: Path) -> None: ...
+    async def enqueue(self, job_id: str, job_metadata: JobMetadata) -> None: ...
 
 
 class DocumentJobUnavailableError(RuntimeError):
@@ -24,13 +24,13 @@ class RedisDocumentJobDispatcher:
     redis_url: str
     _pool: ArqRedis | None = None
 
-    async def enqueue(self, job_id: str, document_path: Path) -> None:
+    async def enqueue(self, job_id: str, job_metadata: JobMetadata) -> None:
         try:
             pool = await self._get_pool()
             enqueued_job = await pool.enqueue_job(
                 "process_document_job",
                 job_id,
-                str(document_path),
+                job_metadata,
                 _job_id=job_id,
             )
         except Exception as error:

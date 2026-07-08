@@ -19,7 +19,7 @@ services:
 
   financial-statements-rag-worker:
     build: .
-    command: python -m arq financial_statements_rag.workers.process_document.WorkerSettings
+    command: python -m arq financial_statements_rag.workers.WorkerSettings
     depends_on:
       - financial-statements-rag-redis
       - financial-statements-rag-postgres
