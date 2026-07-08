@@ -68,6 +68,7 @@ def test_get_index_renders_upload_form(tmp_path: Path) -> None:
     assert 'hx-swap="afterbegin"' in response.text
     assert 'type="file"' in response.text
     assert "multiple" in response.text
+    assert 'href="https://www.sec.gov/search-filings"' in response.text
 
 
 def test_job_status_template_uses_document_processor_status_names() -> None:
