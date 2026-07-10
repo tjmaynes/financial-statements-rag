@@ -13,7 +13,7 @@ EMBEDDING_MODEL_DIMENSIONS = {
 class Settings:
     upload_dir: Path = Path("data/uploads")
     max_upload_count: int = 10
-    redis_url: str = "redis://localhost:6379/0"
+    redis_url: str = ""
     sqlite_database_path: Path = Path("data/sec_filings_rag.sqlite3")
     log_level: str = "INFO"
     worker_concurrency: int = 3
@@ -21,6 +21,7 @@ class Settings:
     openai_api_key: str = ""
     embedding_model: str = "text-embedding-3-small"
     embedding_dimension: int = 1536
+    chat_model: str = "gpt-4.1-mini"
     chunk_size: int = 1000
     chunk_overlap: int = 150
     index_remaining_text: bool = True
@@ -48,7 +49,7 @@ def _embedding_dimension(model: str) -> int:
 
 
 def load_settings_from_env() -> Settings:
-    redis_url = environ.get("SFR_REDIS_URL", "redis://localhost:6379/0")
+    redis_url = _required_env("SFR_REDIS_URL")
     sqlite_database_path = Path(
         environ.get(
             "SFR_SQLITE_DATABASE_PATH",
@@ -68,6 +69,7 @@ def load_settings_from_env() -> Settings:
         openai_api_key=_required_env("SFR_OPENAI_API_KEY"),
         embedding_model=embedding_model,
         embedding_dimension=_embedding_dimension(embedding_model),
+        chat_model=environ.get("SFR_CHAT_MODEL", "gpt-4.1-mini"),
         chunk_size=int(environ.get("SFR_CHUNK_SIZE", "1000")),
         chunk_overlap=int(environ.get("SFR_CHUNK_OVERLAP", "150")),
         index_remaining_text=_bool_env("SFR_INDEX_REMAINING_TEXT", True),
